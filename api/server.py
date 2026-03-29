@@ -1,15 +1,11 @@
 from typing import Any, Dict, Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from env.environment import ArchitectEnv
 from env.models import Action, Observation
 from env.tasks import TASKS
-
-
-class ResetRequest(BaseModel):
-    task_id: str = Field(default="easy")
 
 
 class StepRequest(BaseModel):
@@ -31,14 +27,10 @@ def tasks() -> Dict[str, Any]:
     return {"tasks": TASKS}
 
 
-@app.get("/reset", response_model=Observation)
-@app.post("/reset", response_model=Observation)
-def reset(req: Optional[ResetRequest] = None) -> Observation:
+@app.api_route("/reset", methods=["GET", "POST"], response_model=Observation)
+def reset(request: Request = None) -> Observation:
     global _env
-    task_id = req.task_id if req is not None else "easy"
-    if task_id not in TASKS:
-        raise HTTPException(status_code=400, detail=f"Unknown task_id: {task_id}")
-    _env = ArchitectEnv(task_id=task_id)
+    _env = ArchitectEnv(task_id="easy")
     return _env.reset()
 
 
