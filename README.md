@@ -1,3 +1,13 @@
+---
+title: Architect RL Environment
+emoji: 🤖
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_file: api/server.py
+pinned: false
+---
+
 # ArchitectRL: AI System Design Consultant Environment
 
 A deterministic OpenEnv-style environment where an agent gathers architecture constraints and recommends a system design.
