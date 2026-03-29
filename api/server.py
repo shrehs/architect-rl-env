@@ -31,19 +31,14 @@ def tasks() -> Dict[str, Any]:
     return {"tasks": TASKS}
 
 
-@app.post("/reset", response_model=Observation)
-def reset(req: ResetRequest) -> Observation:
-    global _env
-    if req.task_id not in TASKS:
-        raise HTTPException(status_code=400, detail=f"Unknown task_id: {req.task_id}")
-    _env = ArchitectEnv(task_id=req.task_id)
-    return _env.reset()
-
-
 @app.get("/reset", response_model=Observation)
-def reset_default() -> Observation:
+@app.post("/reset", response_model=Observation)
+def reset(req: Optional[ResetRequest] = None) -> Observation:
     global _env
-    _env = ArchitectEnv(task_id="easy")
+    task_id = req.task_id if req is not None else "easy"
+    if task_id not in TASKS:
+        raise HTTPException(status_code=400, detail=f"Unknown task_id: {task_id}")
+    _env = ArchitectEnv(task_id=task_id)
     return _env.reset()
 
 
