@@ -67,6 +67,10 @@ class ArchitectEnv:
             reward -= 0.05
         if duplicate_submission:
             reward -= 0.1
+        lowered_reply = user_action.user_reply.lower()
+        unsafe_input = "hack" in lowered_reply or "bypass" in lowered_reply
+        if unsafe_input:
+            reward -= 0.1
 
         constraints_count = len(after)
         step_count = int(self.state_data["step_count"])
@@ -80,6 +84,8 @@ class ArchitectEnv:
             "mode": self.state_data["mode"],
             "duplicate_submission": duplicate_submission,
         }
+        if unsafe_input:
+            info["unsafe_input"] = True
 
         if done:
             final_score = grade_constraints(after, self.task_id)

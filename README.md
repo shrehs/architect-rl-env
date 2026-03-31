@@ -282,3 +282,26 @@ This environment is:
 ## Summary
 
 Architect RL Environment provides a realistic benchmark for evaluating multi-turn AI reasoning in system design, bridging the gap between academic RL environments and real-world AI workflows.
+
+## Safety Considerations
+
+This environment includes basic safeguards to ensure stable and reliable agent evaluation:
+
+### Implemented Safety Measures
+
+- Deterministic transitions to ensure reproducibility
+- Reward shaping to prevent exploitative behaviors (e.g. spam, no-progress loops)
+- Strict episode lifecycle enforcement (post-done calls raise errors)
+- Bounded reward signals to prevent instability
+
+### Limitations
+
+- The environment uses rule-based constraint extraction and does not validate semantic correctness of architectural recommendations
+- No explicit filtering of harmful or adversarial user inputs is implemented
+- Recommendations are not evaluated for real-world safety, compliance, or ethical considerations
+
+### Future Improvements
+
+- Add constraint validation checks for conflicting or unsafe configurations
+- Introduce safety-aware grading (e.g. penalizing risky architectures)
+- Integrate content moderation for adversarial or harmful inputs
