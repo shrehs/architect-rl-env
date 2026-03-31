@@ -8,185 +8,277 @@ app_file: api/server.py
 pinned: false
 ---
 
-# ArchitectRL: AI System Design Consultant Environment
+# Architect RL Environment
 
-A deterministic OpenEnv-style environment where an agent gathers architecture constraints and recommends a system design.
+## Overview
 
-## Problem
+Architect RL Environment is a real-world, multi-turn AI system design simulation built using the OpenEnv framework. It evaluates an agent's ability to gather system constraints and recommend appropriate AI architectures through structured interaction.
 
-This environment simulates a real-world AI system design consultation workflow.
+Unlike toy environments, this models a practical workflow used by ML engineers and AI architects when designing systems such as RAG pipelines, chatbots, or real-time AI services.
 
-An AI agent acts as a technical architect assistant and interacts with a user to:
+---
 
-- gather system constraints (use case, latency, accuracy, data scale, update frequency)
-- infer requirements from natural language
-- recommend appropriate AI architectures (for example, RAG variants, fine-tuning, and agentic systems)
+## Problem Motivation
 
-This mirrors practical workflows in ML system design interviews, AI consulting, and enterprise solution architecture.
+Designing AI systems requires:
+- Understanding user requirements
+- Handling ambiguity and trade-offs
+- Making architecture decisions under constraints
 
-## Why This Is Real-World
+This environment simulates that process by requiring an agent to:
+1. Collect key constraints
+2. Interpret user responses
+3. Recommend appropriate system architectures
 
-Designing AI systems is a multi-step reasoning task that requires:
+---
 
-- multi-turn interaction
-- extraction from ambiguous input
-- trade-off analysis
-- iterative decision-making under uncertainty
+## Real-World Utility
 
-Unlike toy tasks, this setup includes incomplete information, noisy responses, and iterative refinement. It evaluates agent reasoning and planning, not only one-shot generation.
+This environment reflects tasks performed in industry at companies like:
+- AI product teams
+- ML infrastructure teams
+- Consulting and solution architecture roles
+
+It can be used for:
+- Evaluating LLM reasoning ability
+- Training agents for structured decision-making
+- Benchmarking multi-turn planning systems
+
+---
 
 ## Environment Design
 
-### Observation Space
+### Core API (OpenEnv compliant)
 
-Each step returns:
+- reset() -> Observation
+- step(action) -> (Observation, reward, done, info)
+- state() -> dict
 
-- `last_assistant_message`: prompt/question asked to user
-- `constraints_collected`: dictionary of extracted constraints
-- `missing_constraints`: remaining constraints to collect
-- `mode`: `consultant` or `architect`
-- `step_count`: current step index
+### Determinism
 
-Observations are intentionally constrained to avoid hidden-state leakage.
+The environment is fully deterministic:
+Same initial state + same action sequence -> identical outputs
 
-### Action Space
+No randomness is used.
 
-Agent provides:
+---
 
-- `user_reply` (string)
-
-This represents simulated user input in response to assistant prompts.
-
-## Reward Design
-
-The reward function is dense and shaped.
-
-Positive signal:
-
-- +0.3 for extracting a new constraint
-- +final completion grade when all constraints are gathered
-
-Penalties:
-
-- -0.05 for no progress
-- -0.1 for duplicate/repeated submission
-- step cost pressure via shaping for efficiency
-
-Stability:
-
-- reward is clamped to `[-1.0, 2.0]`
-
-This combination encourages efficient multi-step reasoning, reduces reward hacking, and provides continuous learning signal.
-
-## Task Design
-
-The environment includes three tasks with increasing difficulty:
-
-- Easy: clear and structured user signals
-- Medium: moderate ambiguity and partial noise
-- Hard: incomplete and ambiguous signals requiring robust multi-turn reasoning
-
-## Grader Design
-
-Each task uses a deterministic grader that outputs a score in `[0.0, 1.0]` based on:
-
-- completeness of collected constraints
-- consistency/correctness
-- efficiency
-
-This supports reproducible and fair evaluation.
-
-## Baseline Behavior
-
-`inference.py` provides an interactive and JSON baseline runner that can be used for quick smoke checks and trajectory generation.
-
-Difficulty trends are intentional: easy should generally be solved faster than medium and hard under similar policies.
-
-## Determinism
-
-- no randomness in baseline transition logic
-- same input sequence produces same outputs
-- determinism and contract behavior are covered by tests
-
-## Strict Contract
-
-The environment in `env/environment.py` implements these exact methods:
-
-- `reset(self) -> Observation`
-- `step(self, action: Action) -> Tuple[Observation, float, bool, dict]`
-- `state(self) -> dict`
-
-Rules enforced:
-
-- deterministic transitions (same input => same output)
-- Pydantic typed models (`Observation`, `Action`, optional `Reward`)
-- no side effects outside internal state
-- no randomness in baseline path
-
-## Setup
-
-```bash
-pip install -r requirements.txt
-```
-
-## Run Locally With Docker
-
-```bash
-docker build -t architect-rl .
-docker run -p 7860:7860 architect-rl
-```
-
-## Run API
-
-```bash
-uvicorn api.server:app --reload
-```
-
-### API Endpoints
-
-- `GET /reset`: initialize environment
-- `POST /step`: apply one action
-- `GET /state`: inspect full internal state
-- `GET /health`: health probe
-- `GET /tasks`: list task ids
-
-## Run Baseline Inference
-
-Interactive mode:
-
-```bash
-python inference.py --task easy
-```
-
-JSON mode:
-
-```bash
-python inference.py --json-input input.json --json-output output.json
-```
-
-Example input JSON:
+## Observation Space
 
 ```json
 {
-  "task": "easy",
-  "actions": [
-    "Our use case is fraud detection with low latency under 20ms",
-    "Need 99.9% accuracy and we process 5TB dataset daily"
-  ]
+  "last_assistant_message": "string",
+  "constraints_collected": "object",
+  "missing_constraints": ["string"],
+  "mode": "string",
+  "step_count": "integer"
 }
 ```
 
-## Tests
+---
 
-```bash
-pytest -q
+## Action Space
+
+```json
+{
+  "user_reply": "string"
+}
 ```
 
-## Why This Environment Is Challenging
+---
 
-- requires multi-step planning rather than one-shot answers
-- handles ambiguous natural language constraints
-- balances speed versus completeness
-- includes anti-exploit shaping penalties
+## Task Design
 
-This makes it a strong candidate for evaluating advanced agent behavior in realistic architecture-assistant settings.
+Three tasks with increasing difficulty:
+
+### Easy
+
+- Clear user responses
+- Direct constraint extraction
+- Minimal ambiguity
+
+### Medium
+
+- Partial or vague responses
+- Requires interpretation
+- Some ambiguity handling
+
+### Hard
+
+- Conflicting or incomplete constraints
+- Requires trade-off reasoning
+- Multi-step inference
+
+Each task includes a deterministic grader scoring from 0.0 to 1.0.
+
+---
+
+## Reward Design (Important)
+
+The reward function provides dense feedback across the episode:
+
+### Positive Signals
+
+- Reward for collecting new constraints
+- Reward for completing all constraints efficiently
+
+### Penalties
+
+- -0.05 for no progress in a step
+- -0.1 for duplicate submissions (anti-exploit)
+- Prevents reward hacking via random spam
+
+### Final Score
+
+- Task grader outputs normalized score in [0.0, 1.0]
+
+---
+
+## Anti-Exploit Mechanisms
+
+- Duplicate input penalty
+- No-progress penalty
+- Step efficiency tracking
+- Deterministic behavior prevents stochastic exploitation
+
+---
+
+## Episode Rules
+
+- Max steps: 8
+- Episode ends when:
+  - All constraints are collected
+  - Or max steps reached
+
+### Strict Enforcement
+
+- Calling step() after done=True raises RuntimeError
+- API maps this to HTTP 409 Conflict
+
+---
+
+## Baseline Inference
+
+Run:
+
+```bash
+python inference.py
+```
+
+Supports:
+
+- Interactive CLI mode
+- JSON input/output mode
+
+### Environment Variables Required
+
+- OPENAI_API_KEY
+- API_BASE_URL
+- MODEL_NAME
+- HF_TOKEN
+
+---
+
+## Baseline Behavior
+
+The baseline agent:
+
+- Iteratively queries missing constraints
+- Uses LLM responses to decide next actions
+- Produces reproducible scores across tasks
+
+---
+
+## Deployment
+
+### Docker
+
+```bash
+docker build -t architect-rl .
+docker run --rm -p 7860:7860 architect-rl
+```
+
+### Hugging Face Space
+
+- Containerized deployment
+- API endpoints:
+  - /reset
+  - /step
+
+---
+
+## API Endpoints
+
+### Reset
+
+GET /reset
+POST /reset
+
+Returns initial observation.
+
+---
+
+### Step
+
+POST /step
+
+Request:
+
+```json
+{
+  "user_reply": "string"
+}
+```
+
+Response:
+
+```json
+{
+  "observation": {...},
+  "reward": "float",
+  "done": "bool",
+  "info": {...}
+}
+```
+
+---
+
+## Testing and Validation
+
+Includes tests for:
+
+- Determinism
+- API contract compliance
+- Post-done behavior
+- Reward stability
+- Anti-exploit resistance
+- YAML-task alignment
+
+---
+
+## Retrospective Insights
+
+- Determinism is critical for evaluation environments
+- Reward shaping must prevent exploitation
+- API correctness matters as much as core logic
+- Deployment failures often stem from metadata, not code
+- Lifecycle invariants (for example, done-state) must be strictly enforced
+
+---
+
+## Outcome
+
+This environment is:
+
+- Deterministic
+- OpenEnv-compliant
+- Reward-shaped with anti-exploit mechanisms
+- Fully containerized
+- Deployable on Hugging Face Spaces
+- Backed by reproducible evaluation
+
+---
+
+## Summary
+
+Architect RL Environment provides a realistic benchmark for evaluating multi-turn AI reasoning in system design, bridging the gap between academic RL environments and real-world AI workflows.
