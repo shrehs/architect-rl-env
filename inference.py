@@ -74,6 +74,7 @@ def interactive_mode(task_id: str) -> None:
     env = ArchitectEnv(task_id=task_id)
     print("ArchitectRL interactive mode. Type 'exit' to stop.")
     print(env.reset().last_assistant_message)
+    print("Available actions: ASK_USE_CASE, ASK_LATENCY, ASK_ACCURACY, ASK_DATA_SIZE, ASK_UPDATE_FREQUENCY, ASK_BUDGET, FINALIZE, FINALIZE_WITH_COMPROMISE")
 
     while True:
         action_type = input("Action type: ").strip()

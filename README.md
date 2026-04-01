@@ -198,6 +198,27 @@ Generated via `experiments/run_evaluation.py`:
 
 ---
 
+## 💥 Failure Case: Overconfident Agent Under Uncertainty
+
+Mode: Adversarial
+Agent actions: ASK_LATENCY -> ASK_BUDGET -> FINALIZE
+
+Result:
+
+* Constraints collected: 0
+* Oracle score: 0.1
+* Reward: -0.96
+
+Failure:
+The agent prematurely finalized without sufficient information,
+leading to a misaligned architecture recommendation.
+
+Failure reason: overconfident_no_tradeoff
+
+This demonstrates that the environment penalizes overconfident decision-making under uncertainty, a critical property of real-world AI system design.
+
+---
+
 ## ⚙️ Setup Instructions
 
 ```bash

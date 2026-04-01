@@ -144,7 +144,7 @@ class ArchitectEnv:
                 agent_output = f"{agent_output} Balanced hybrid compromise."
             agent_structured = self._infer_agent_recommendation(agent_output)
             oracle_output = oracle_recommend(self.state_data["hidden_constraints"])
-            hard_conflict = self._is_compromise(oracle_output)
+            hard_conflict = len(self.state_data["observed_constraints"]) >= 3 and self._is_compromise(oracle_output)
 
             similarity = self._compare(agent_structured, oracle_output)
             reward += similarity
