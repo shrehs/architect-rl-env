@@ -10,11 +10,16 @@ from env.tasks import TASKS
 
 class StepRequest(BaseModel):
     action: Optional[Action] = None
-    user_reply: Optional[str] = None
+    action_type: Optional[str] = Field(default=None, min_length=1)
 
 
 app = FastAPI(title="ArchitectRL OpenEnv API", version="1.0.0")
 _env = ArchitectEnv(task_id="easy")
+
+
+@app.get("/")
+def root() -> Dict[str, str]:
+    return {"status": "ok", "message": "ArchitectEnv is running"}
 
 
 @app.get("/health")
@@ -38,10 +43,10 @@ def reset(request: Request = None) -> Observation:
 def step(req: StepRequest) -> Dict[str, Any]:
     if req.action is not None:
         action = req.action
-    elif req.user_reply is not None:
-        action = Action(user_reply=req.user_reply)
+    elif req.action_type is not None:
+        action = Action(type=req.action_type)
     else:
-        raise HTTPException(status_code=422, detail="Provide either action or user_reply")
+        raise HTTPException(status_code=422, detail="Provide either action or action_type")
 
     try:
         observation, reward, done, info = _env.step(action)

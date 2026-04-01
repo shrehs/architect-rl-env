@@ -30,7 +30,7 @@ def extract_constraints(text: str, existing: Dict[str, str]) -> Dict[str, str]:
     if "gb" in normalized or "tb" in normalized or "dataset" in normalized:
         discovered["data_size"] = text
 
-    if "daily" in normalized or "hourly" in normalized or "stream" in normalized:
+    if "daily" in normalized or "hourly" in normalized or "stream" in normalized or "continuous" in normalized:
         discovered["update_frequency"] = text
 
     merged = dict(existing)
@@ -46,10 +46,26 @@ def generate_recommendation(constraints: Dict[str, str]) -> str:
     latency_text = constraints.get("latency", "")
     data_size_text = constraints.get("data_size", "")
     update_text = constraints.get("update_frequency", "")
+    budget_text = constraints.get("budget", "")
+    accuracy_text = constraints.get("accuracy", "")
 
     low_latency = any(token in latency_text.lower() for token in ["real-time", "ms", "low latency"])
     high_data = any(token in data_size_text.lower() for token in ["tb", "large", "million"])
     streaming = any(token in update_text.lower() for token in ["stream", "realtime", "continuous", "hourly"])
+    low_budget = any(token in budget_text.lower() for token in ["low", "limited"])
+    high_accuracy = any(token in accuracy_text.lower() for token in ["high", "near-perfect", "perfect", "99."])
+
+    if low_latency and high_data and streaming and low_budget:
+        return (
+            "Recommend a balanced hybrid compromise with a small transformer on the edge, "
+            "batch fallback processing, and a streaming control plane to preserve latency under budget."
+        )
+
+    if low_latency and high_accuracy and streaming:
+        return (
+            "Recommend a tradeoff-oriented hybrid architecture that keeps the latency-sensitive path lean "
+            "while preserving accuracy with asynchronous model refinement."
+        )
 
     if low_latency and streaming:
         return "Recommend event-driven microservices with Redis caching and Kafka stream processing."

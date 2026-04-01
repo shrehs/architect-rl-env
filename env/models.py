@@ -17,7 +17,7 @@ class Observation(BaseModel):
 
 
 class Action(BaseModel):
-    user_reply: str = Field(min_length=1)
+    type: str = Field(min_length=1)
 
 
 class Reward(BaseModel):

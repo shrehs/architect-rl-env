@@ -1,11 +1,41 @@
-from typing import Dict
+from typing import Any, Dict
 
 from .utils import REQUIRED_CONSTRAINTS, has_conflicting_constraints
 
-TASKS: Dict[str, Dict[str, str]] = {
-    "easy": {"description": "Collect clear constraints and recommend architecture"},
-    "medium": {"description": "Handle vague or partial user responses"},
-    "hard": {"description": "Handle conflicting constraints and optimize trade-offs"},
+TASKS: Dict[str, Dict[str, Any]] = {
+    "easy": {
+        "description": "Collect clear constraints and recommend architecture",
+        "constraints": {
+            "use_case": "recommendation ranking",
+            "latency": "real-time",
+            "accuracy": "high",
+            "data_size": "moderate",
+            "update_frequency": "hourly",
+            "budget": "low",
+        },
+    },
+    "medium": {
+        "description": "Handle vague or partial user responses",
+        "constraints": {
+            "use_case": "fraud detection",
+            "latency": "near-real-time",
+            "accuracy": "high",
+            "data_size": "large",
+            "update_frequency": "streaming",
+            "budget": "medium",
+        },
+    },
+    "hard": {
+        "description": "Handle conflicting constraints and optimize trade-offs",
+        "constraints": {
+            "use_case": "multimodal assistant",
+            "latency": "real-time",
+            "accuracy": "near-perfect",
+            "data_size": "very large",
+            "update_frequency": "continuous",
+            "budget": "low",
+        },
+    },
 }
 
 TASK_CLASS_NAMES: Dict[str, str] = {

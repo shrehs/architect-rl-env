@@ -8,7 +8,7 @@ print("✓ Reset called")
 
 # run until done
 for i in range(10):
-    r = requests.post(f"{base}/step", json={"user_reply": "test"})
+    r = requests.post(f"{base}/step", json={"action": {"type": "ASK_BUDGET"}})
     data = r.json()
     print(f"  Step {i+1}: done={data.get('done', False)}")
     if data.get("done"):
@@ -17,7 +17,7 @@ for i in range(10):
 
 # one more step (should fail with 409)
 print("\nAttempting step after done...")
-r = requests.post(f"{base}/step", json={"user_reply": "extra"})
+r = requests.post(f"{base}/step", json={"action": {"type": "ASK_BUDGET"}})
 print(f"Status Code: {r.status_code}")
 print(f"Response: {r.text}")
 

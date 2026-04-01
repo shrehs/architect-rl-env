@@ -40,5 +40,5 @@ observation_space:
 action_space:
   type: object
   properties:
-    user_reply:
+    type:
       type: string

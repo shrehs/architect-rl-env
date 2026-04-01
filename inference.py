@@ -7,6 +7,7 @@ from typing import Any, Dict, List
 from dotenv import load_dotenv
 from openai import OpenAI
 
+from env.agents import choose_action
 from env.environment import ArchitectEnv
 from env.models import Action
 
@@ -19,7 +20,7 @@ client = OpenAI(
 MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4o-mini")
 
 
-def run_episode(task_id: str, user_replies: List[str]) -> Dict[str, Any]:
+def run_episode(task_id: str, action_types: List[str]) -> Dict[str, Any]:
     env = ArchitectEnv(task_id=task_id)
     first_observation = env.reset()
 
@@ -27,8 +28,8 @@ def run_episode(task_id: str, user_replies: List[str]) -> Dict[str, Any]:
         {"observation": first_observation.model_dump(), "reward": 0.0, "done": False, "info": {}}
     ]
 
-    for reply in user_replies:
-        observation, reward, done, info = env.step(Action(user_reply=reply))
+    for action_type in action_types:
+        observation, reward, done, info = env.step(Action(type=action_type))
         trajectory.append(
             {
                 "observation": observation.model_dump(),
@@ -43,17 +44,43 @@ def run_episode(task_id: str, user_replies: List[str]) -> Dict[str, Any]:
     return {"task_id": task_id, "trajectory": trajectory, "final_state": env.state()}
 
 
+def run_policy_episode(task_id: str, agent: str) -> Dict[str, Any]:
+    env = ArchitectEnv(task_id=task_id)
+    observation = env.reset()
+
+    trajectory: List[Dict[str, Any]] = [
+        {"observation": observation.model_dump(), "reward": 0.0, "done": False, "info": {}}
+    ]
+
+    for _ in range(env.max_steps):
+        action_type = choose_action(agent, observation)
+        observation, reward, done, info = env.step(Action(type=action_type))
+        trajectory.append(
+            {
+                "action": action_type,
+                "observation": observation.model_dump(),
+                "reward": reward,
+                "done": done,
+                "info": info,
+            }
+        )
+        if done:
+            break
+
+    return {"task_id": task_id, "agent": agent, "trajectory": trajectory, "final_state": env.state()}
+
+
 def interactive_mode(task_id: str) -> None:
     env = ArchitectEnv(task_id=task_id)
     print("ArchitectRL interactive mode. Type 'exit' to stop.")
     print(env.reset().last_assistant_message)
 
     while True:
-        user_reply = input("You: ").strip()
-        if user_reply.lower() in {"exit", "quit"}:
+        action_type = input("Action type: ").strip()
+        if action_type.lower() in {"exit", "quit"}:
             break
 
-        observation, reward, done, info = env.step(Action(user_reply=user_reply))
+        observation, reward, done, info = env.step(Action(type=action_type))
         print(f"Assistant: {observation.last_assistant_message}")
         print(f"Reward: {reward:.3f} | Done: {done} | Info: {json.dumps(info)}")
 
@@ -67,7 +94,7 @@ def json_mode(input_path: str, output_path: str) -> None:
     task_id = str(payload.get("task", "easy"))
     actions = [str(item) for item in payload.get("actions", [])]
 
-    result = run_episode(task_id=task_id, user_replies=actions)
+    result = run_episode(task_id=task_id, action_types=actions)
     Path(output_path).write_text(json.dumps(result, indent=2), encoding="utf-8")
 
 
@@ -76,7 +103,13 @@ def main() -> None:
     parser.add_argument("--task", default="easy", choices=["easy", "medium", "hard"])
     parser.add_argument("--json-input", default="")
     parser.add_argument("--json-output", default="")
+    parser.add_argument("--agent", default="manual", choices=["manual", "random", "heuristic"])
     args = parser.parse_args()
+
+    if args.agent in {"random", "heuristic"}:
+        result = run_policy_episode(task_id=args.task, agent=args.agent)
+        print(json.dumps(result, indent=2))
+        return
 
     if args.json_input and args.json_output:
         json_mode(args.json_input, args.json_output)
