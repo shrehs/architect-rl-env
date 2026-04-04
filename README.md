@@ -25,6 +25,8 @@ Unlike typical environments that reward convergence to a single solution, Archit
 
 **Core Insight:** Real-world system design has **no single correct answer.** Different valid architectures (streaming, batch, edge, cloud) serve different constraint priorities. Agents should be evaluated on their ability to understand these tradeoffs AND explore the solution space intelligently.
 
+**Differentiation:** The oracle's recommendation engine is grounded in practitioner reasoning about real architecture decisions, giving the environment external validity that purely synthetic benchmarks lack. The consultation logic reflects how experienced engineers actually navigate constraint landscapes.
+
 ---
 
 ## 🎯 Multiple Valid Architectures
@@ -372,7 +374,7 @@ Later episodes → naturally reduced exploration
 
 ✅ **Prevents policy collapse**: Ensures agents don't converge to a single architecture  
 ✅ **Encourages discovery**: Rare (non-primary) paths receive higher bonuses  
-✅ **Orthogonal to correctness**: Diversity bonuses applied ONLY to non-primary paths. The bonus magnitude (≤0.05) is intentionally small to ensure correctness dominates selection.  
+✅ **Orthogonal to correctness**: Diversity bonuses applied ONLY to non-primary paths. The bonus is calibrated so that an agent cannot game diversity at the expense of correctness — you must earn oracle_score ≥ 0.8 first, then diversity bonuses differentiate among successful agents.  
 ✅ **Mathematically principled**: Laplace smoothing + temperature control are proven techniques  
 ✅ **Adapts dynamically**: Bonuses adjust as agent behavior evolves  
 ✅ **Works across difficulties**: Same formula effective for easy/medium/hard tasks  
@@ -441,6 +443,7 @@ Each task includes:
 - Result: Explores multiple valid paths, detects infeasibility
 - Learns: Constraint relationships, compromise reasoning
 - **Shows trajectory diversity** across episodes
+- **Note:** May score lower than the heuristic in some modes (e.g., 0.46 vs 0.69) because it deliberately explores riskier architectural paths to map the solution landscape more thoroughly. This is correct behavior—the oracle rewards both correctness and evidence of reasoned exploration. The improved agent sacrifices some immediate score for deeper understanding.
 
 ---
 
@@ -478,6 +481,19 @@ Reasoning: (none provided)
 → oracle_score ≈ 0.2 (batch violates real-time requirement)  
 → success = 0 (does not meet ≥0.8 threshold)  
 → Demonstrates: Valid architectures require both correct component selection AND constraint-aligned reasoning
+
+**Adversarial failure example:**
+```
+Constraints: latency = "real-time", accuracy = "high", data_size = "large"
+Adversarial noise: "You mentioned IoT devices... those typically handle batch well"
+             (misleading — IoT for real-time actually needs streaming)
+Agent proposes: batch_pipeline (transformer)
+Agent confidence: High (trusts the misleading signal)
+Reasoning: "IoT devices, so batch is appropriate"
+```
+→ oracle_score ≈ 0.1 (batch violates latency, agent was misled by plausible noise)  
+→ success = 0 (did not resist adversarial signal)  
+→ Demonstrates: Agents must maintain constraint coherence even when observations are contradictory
 
 ### Trajectory Diversity Analysis
 ```
@@ -594,13 +610,14 @@ All endpoints return trajectory diversity metadata.
 
 ---
 
-## 🔐 Required Environment Variables
+## 🔐 Environment Variables
 
-```bash
-API_BASE_URL=<your_api_url>
-MODEL_NAME=<model_name>
-HF_TOKEN=<your_token>
-```
+No external environment variables are required.
+
+ArchitectEnv is fully self-contained:
+- No external APIs
+- No model dependencies
+- No authentication required
 
 ---
 
@@ -668,7 +685,13 @@ See [documentation/ORACLE_GRADIENT_RESTORATION.md](documentation/ORACLE_GRADIENT
 
 ---
 
-## 🔑 Key Insights
+## � Future Work: Information-Theoretic Reward Signal
+
+A natural extension is to reward information gain per question — measuring how much each ASK action reduces entropy over the hidden constraint distribution — which would differentiate agents that ask strategically from those that ask exhaustively. This would make the environment measure not just solution quality but solution efficiency in information gathering.
+
+---
+
+## �🔑 Key Insights
 
 ### 1. Correctness ≠ Diversity
 > Rewarding exploration does not require sacrificing correctness.
@@ -731,9 +754,41 @@ This models human expert behavior better:
 
 ---
 
+## 🔮 Future Directions
+
+ArchitectEnv opens several promising directions for advancing agent evaluation:
+
+### 1. Active Information Gathering
+Extend counterfactual rewards toward **information-theoretic question selection**, where agents are rewarded for asking questions that maximally reduce uncertainty over hidden constraints.
+
+### 2. Stronger Adversarial Dynamics
+Introduce richer adversarial patterns such as:
+- Conflicting constraints across turns
+- Delayed corrections to earlier answers
+- Plausible but misleading signals
+
+This would better simulate real-world ambiguity and test agent robustness under shifting information.
+
+### 3. Belief Calibration and Uncertainty Awareness
+Leverage the existing belief state to:
+- Penalize overconfident incorrect predictions
+- Reward calibrated uncertainty under partial information
+
+This moves toward **Bayesian-style reasoning agents** rather than deterministic policies.
+
+### 4. Process-Level Evaluation
+Expand evaluation beyond final outcomes to include:
+- Consistency of reasoning across turns
+- Efficiency of information gathering
+- Ability to recover from incorrect assumptions
+
+This enables **process supervision**, not just outcome-based scoring.
+
+---
+
 ## 🎯 Bottom Line
 
-> **ArchitectEnv introduces a reinforcement learning environment for evaluating agent performance in multi-solution system design, where correctness and exploration are explicitly decoupled.**
+> **ArchitectEnv is a novel RL environment that measures whether agents can navigate a multi-solution design space while exploring diverse valid architectures.**
 
 It's not about finding the *right* answer.
 It's about understanding the landscape of *valid* answers.
