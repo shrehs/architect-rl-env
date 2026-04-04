@@ -28,6 +28,7 @@ class ArchitectEnv:
         self.max_steps = max_steps
         self.optimal_steps = {"easy": 6, "medium": 9, "hard": 12}  # Target efficient paths
         self.checkpoints = {}  # step_id -> state snapshot for branching
+        self.episode_counter = 0  # Track episode number for structured logging
         
         # Reward weighting to reduce terminal dominance
         self.step_reward_weight = 1.0    # Full weight on step-level signals
@@ -62,6 +63,7 @@ class ArchitectEnv:
         return belief
 
     def reset(self) -> Observation:
+        self.episode_counter += 1
         self.mode = random.choice(["clean", "noisy", "adversarial"])
         self.state_data: Dict[str, object] = {
             "messages": [],
@@ -80,6 +82,8 @@ class ArchitectEnv:
         }
         self.checkpoints = {}  # Reset checkpoints for new episode
         self.user = UserSimulator(self.state_data["hidden_constraints"])
+        # Structured logging: episode start
+        print(f"START episode_{self.episode_counter} task={self.task_id} mode={self.mode}")
         return self._build_observation()
 
     def step(self, action: Action) -> Tuple[Observation, float, bool, dict]:
@@ -136,6 +140,10 @@ class ArchitectEnv:
         missing = missing_constraints(after)
 
         done = action_type in {"FINALIZE", "FINALIZE_WITH_COMPROMISE"} or int(self.state_data["step_count"]) >= self.max_steps
+        
+        # Structured logging: step and episode progress
+        step_num = int(self.state_data["step_count"])
+        print(f"STEP {step_num} action={action_type} reward={reward:.5f}")
         
         # Early termination: insufficient exploration
         step_count = int(self.state_data["step_count"])
@@ -406,6 +414,14 @@ class ArchitectEnv:
             self._total_episodes += 1
         
         observation = self._build_observation()
+        
+        # Structured logging: episode end
+        if done:
+            oracle_score = float(info.get("oracle_score", 0.0))
+            step_num = int(self.state_data["step_count"])
+            success = 1 if oracle_score >= 0.8 else 0
+            print(f"END episode_{self.episode_counter} steps={step_num} success={success} oracle_score={oracle_score:.3f}")
+        
         return observation, reward, bool(self.state_data["done"]), info
 
     def state(self) -> dict:

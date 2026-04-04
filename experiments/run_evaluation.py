@@ -577,6 +577,10 @@ def main() -> None:
     parser.add_argument("--exploration-alpha", type=float, default=1.0, help="Temperature control for exploration bonus (1.0=balanced, >1.0=stronger rarity push)")
     args = parser.parse_args()
 
+    # Structured logging: evaluation start
+    total_run_episodes = args.episodes * len(AGENTS) * len(MODES)
+    print(f"START evaluation_run task={args.task} agents={len(AGENTS)} modes={len(MODES)} episodes={total_run_episodes}")
+
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -614,6 +618,11 @@ def main() -> None:
     plot7 = plot_path_distribution_over_time(records, out_dir)
     plot8 = plot_entropy_over_time(records, out_dir)
     plot9 = plot_entropy_vs_oracle_score(records, out_dir)
+
+    # Structured logging: evaluation end
+    success_rate = sum(1 for r in records if r["success"]) / len(records) if records else 0.0
+    avg_oracle_score = mean([r["oracle_score"] for r in records]) if records else 0.0
+    print(f"END evaluation_run episodes_completed={len(records)} success_rate={success_rate:.3f} avg_oracle_score={avg_oracle_score:.3f}")
 
     print_summary(records)
     print(f"\nSaved CSV: {csv_path}")
