@@ -610,13 +610,14 @@ All endpoints return trajectory diversity metadata.
 
 ---
 
-## 🔐 Required Environment Variables
+## 🔐 Environment Variables
 
-```bash
-API_BASE_URL=<your_api_url>
-MODEL_NAME=<model_name>
-HF_TOKEN=<your_token>
-```
+No external environment variables are required.
+
+ArchitectEnv is fully self-contained:
+- No external APIs
+- No model dependencies
+- No authentication required
 
 ---
 
