@@ -19,7 +19,7 @@ from env.models import Action
 # Mandatory environment variables with fallbacks
 API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
 MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
-HF_TOKEN = os.getenv("OPENAI_API_KEY", "HF_TOKEN")
+HF_TOKEN = os.getenv("HF_TOKEN", "dummy")
 
 client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
 
@@ -161,7 +161,7 @@ def main() -> None:
             rewards_str = ",".join(f"{r:.2f}" for r in result["rewards"])
             print(f"[END] success={str(result['success']).lower()} steps={result['steps']} score={result['oracle_score']:.2f} rewards={rewards_str}")
         except Exception as e:
-            print(f"[END] error={str(e)}")
+            print(f"[END] success=false steps=0 score=0.00 rewards=")
             raise
         return
 
