@@ -33,3 +33,8 @@ htmlcov/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Test artifacts and outputs
+artifacts/
+*.png
+*.jpg
