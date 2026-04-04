@@ -19,7 +19,7 @@ from env.models import Action
 # Mandatory environment variables with fallbacks
 API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
 MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
-HF_TOKEN = os.getenv("HF_TOKEN", "dummy")
+HF_TOKEN = os.getenv("OPENAI_API_KEY", "HF_TOKEN")
 
 client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
 
@@ -54,7 +54,6 @@ def run_compliant_episode(task_id: str = "easy", agent: str = "heuristic", verbo
     observation = env.reset()
     
     rewards: List[float] = []
-    oracle_scores: List[float] = []
     steps = 0
     final_info = {}
     
@@ -62,18 +61,16 @@ def run_compliant_episode(task_id: str = "easy", agent: str = "heuristic", verbo
         action_type = choose_action(agent, observation)
         observation, reward, done, info = env.step(Action(type=action_type))
         
-        rewards.append(reward)
+        # Normalize reward ONCE and append: single source of truth
+        normalized_reward = min(reward / 2.0, 1.0)
+        rewards.append(normalized_reward)
         steps += 1
         final_info = info
         
-        # Extract oracle score for this step (0.0-1.0)
-        step_oracle_score = float(info.get("oracle_score", 0.0))
-        oracle_scores.append(step_oracle_score)
-        
-        # Output [STEP] log with normalized values
+        # Output [STEP] log with strict format: step, action, reward, done, error
         if verbose:
-            normalized_reward = min(reward / 2.0, 1.0)  # Normalize to ~[0,1]
-            print(f"[STEP] step={steps} action={action_type} reward={normalized_reward:.2f} oracle_score={step_oracle_score:.2f}")
+            done_str = "true" if done else "false"
+            print(f"[STEP] step={steps} action={action_type} reward={normalized_reward:.2f} done={done_str} error=null")
         
         if done:
             break
@@ -82,17 +79,13 @@ def run_compliant_episode(task_id: str = "easy", agent: str = "heuristic", verbo
     oracle_score = float(final_info.get("oracle_score", 0.0))
     success = oracle_score >= 0.8
     
-    # Normalize rewards for output (they can be up to 2.0 internally)
-    normalized_rewards = [min(r / 2.0, 1.0) for r in rewards]
-    
     return {
         "task_id": task_id,
         "agent": agent,
         "steps": steps,
         "success": success,
         "oracle_score": oracle_score,
-        "rewards": normalized_rewards,  # Normalized rewards for output
-        "raw_rewards": rewards,  # Raw rewards for debugging  
+        "rewards": rewards,  # Already normalized [0,1]
         "final_state": env.state()
     }
 
