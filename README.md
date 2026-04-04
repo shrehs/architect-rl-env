@@ -754,6 +754,38 @@ This models human expert behavior better:
 
 ---
 
+## 🔮 Future Directions
+
+ArchitectEnv opens several promising directions for advancing agent evaluation:
+
+### 1. Active Information Gathering
+Extend counterfactual rewards toward **information-theoretic question selection**, where agents are rewarded for asking questions that maximally reduce uncertainty over hidden constraints.
+
+### 2. Stronger Adversarial Dynamics
+Introduce richer adversarial patterns such as:
+- Conflicting constraints across turns
+- Delayed corrections to earlier answers
+- Plausible but misleading signals
+
+This would better simulate real-world ambiguity and test agent robustness under shifting information.
+
+### 3. Belief Calibration and Uncertainty Awareness
+Leverage the existing belief state to:
+- Penalize overconfident incorrect predictions
+- Reward calibrated uncertainty under partial information
+
+This moves toward **Bayesian-style reasoning agents** rather than deterministic policies.
+
+### 4. Process-Level Evaluation
+Expand evaluation beyond final outcomes to include:
+- Consistency of reasoning across turns
+- Efficiency of information gathering
+- Ability to recover from incorrect assumptions
+
+This enables **process supervision**, not just outcome-based scoring.
+
+---
+
 ## 🎯 Bottom Line
 
 > **ArchitectEnv is a novel RL environment that measures whether agents can navigate a multi-solution design space while exploring diverse valid architectures.**
