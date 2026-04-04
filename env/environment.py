@@ -82,8 +82,6 @@ class ArchitectEnv:
         }
         self.checkpoints = {}  # Reset checkpoints for new episode
         self.user = UserSimulator(self.state_data["hidden_constraints"])
-        # Structured logging: episode start
-        print(f"START episode_{self.episode_counter} task={self.task_id} mode={self.mode}")
         return self._build_observation()
 
     def step(self, action: Action) -> Tuple[Observation, float, bool, dict]:
@@ -140,10 +138,6 @@ class ArchitectEnv:
         missing = missing_constraints(after)
 
         done = action_type in {"FINALIZE", "FINALIZE_WITH_COMPROMISE"} or int(self.state_data["step_count"]) >= self.max_steps
-        
-        # Structured logging: step and episode progress
-        step_num = int(self.state_data["step_count"])
-        print(f"STEP {step_num} action={action_type} reward={reward:.5f}")
         
         # Early termination: insufficient exploration
         step_count = int(self.state_data["step_count"])
@@ -414,14 +408,6 @@ class ArchitectEnv:
             self._total_episodes += 1
         
         observation = self._build_observation()
-        
-        # Structured logging: episode end
-        if done:
-            oracle_score = float(info.get("oracle_score", 0.0))
-            step_num = int(self.state_data["step_count"])
-            success = 1 if oracle_score >= 0.8 else 0
-            print(f"END episode_{self.episode_counter} steps={step_num} success={success} oracle_score={oracle_score:.3f}")
-        
         return observation, reward, bool(self.state_data["done"]), info
 
     def state(self) -> dict:

@@ -13,11 +13,12 @@ from env.models import Action
 
 load_dotenv()
 
-client = OpenAI(
-    api_key=os.getenv("OPENAI_API_KEY"),
-    base_url=os.getenv("API_BASE_URL"),
-)
-MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4o-mini")
+# Mandatory environment variables with fallbacks
+API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
+MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
+HF_TOKEN = os.getenv("HF_TOKEN", "dummy")
+
+client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
 
 
 def run_episode(task_id: str, action_types: List[str]) -> Dict[str, Any]:
@@ -42,6 +43,40 @@ def run_episode(task_id: str, action_types: List[str]) -> Dict[str, Any]:
             break
 
     return {"task_id": task_id, "trajectory": trajectory, "final_state": env.state()}
+
+
+def run_compliant_episode(task_id: str = "easy", agent: str = "heuristic") -> Dict[str, Any]:
+    """Run episode with compliant [START]/[STEP]/[END] logging."""
+    env = ArchitectEnv(task_id=task_id)
+    observation = env.reset()
+    
+    rewards: List[float] = []
+    steps = 0
+    
+    for _ in range(env.max_steps):
+        action_type = choose_action(agent, observation)
+        observation, reward, done, info = env.step(Action(type=action_type))
+        
+        rewards.append(reward)
+        steps += 1
+        
+        if done:
+            break
+    
+    # Final oracle score from last step info
+    final_info = info if 'info' in locals() else {}
+    oracle_score = float(final_info.get("oracle_score", 0.0))
+    success = oracle_score >= 0.8
+    
+    return {
+        "task_id": task_id,
+        "agent": agent,
+        "steps": steps,
+        "success": success,
+        "oracle_score": oracle_score,
+        "rewards": rewards,
+        "final_state": env.state()
+    }
 
 
 def run_policy_episode(task_id: str, agent: str) -> Dict[str, Any]:
@@ -104,8 +139,20 @@ def main() -> None:
     parser.add_argument("--task", default="easy", choices=["easy", "medium", "hard"])
     parser.add_argument("--json-input", default="")
     parser.add_argument("--json-output", default="")
-    parser.add_argument("--agent", default="manual", choices=["manual", "random", "heuristic"])
+    parser.add_argument("--agent", default="heuristic", choices=["manual", "random", "heuristic"])
+    parser.add_argument("--compliant", action="store_true", help="Output compliant [START]/[STEP]/[END] logs")
     args = parser.parse_args()
+
+    if args.compliant:
+        print(f"[START] task={args.task} env=architectenv model={MODEL_NAME}")
+        try:
+            result = run_compliant_episode(task_id=args.task, agent=args.agent)
+            rewards_str = ",".join(f"{r:.2f}" for r in result["rewards"])
+            print(f"[END] success={str(result['success']).lower()} steps={result['steps']} score={result['oracle_score']:.2f} rewards={rewards_str}")
+        except Exception as e:
+            print(f"[END] error={str(e)}")
+            raise
+        return
 
     if args.agent in {"random", "heuristic"}:
         result = run_policy_episode(task_id=args.task, agent=args.agent)

@@ -577,9 +577,7 @@ def main() -> None:
     parser.add_argument("--exploration-alpha", type=float, default=1.0, help="Temperature control for exploration bonus (1.0=balanced, >1.0=stronger rarity push)")
     args = parser.parse_args()
 
-    # Structured logging: evaluation start
     total_run_episodes = args.episodes * len(AGENTS) * len(MODES)
-    print(f"START evaluation_run task={args.task} agents={len(AGENTS)} modes={len(MODES)} episodes={total_run_episodes}")
 
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -587,14 +585,6 @@ def main() -> None:
     # Feature 9 (Refined+): Global path frequency for contextual diversity bonuses with temperature control
     # Persists across all (agent, mode, episode) combinations
     global_path_frequency = {"primary": 0, "alternative_1": 0, "alternative_2": 0}
-    
-    # Log configuration
-    print(f"\n📊 Evaluation Configuration:")
-    print(f"  Episodes per (agent, mode): {args.episodes}")
-    print(f"  Task: {args.task}")
-    print(f"  Exploration alpha (temperature): {args.exploration_alpha}")
-    print(f"  Total episodes: {args.episodes * len(AGENTS) * len(MODES)}")
-    print()
     
     records: List[Dict[str, float | int | str]] = []
     for agent in AGENTS:
@@ -622,9 +612,8 @@ def main() -> None:
     # Structured logging: evaluation end
     success_rate = sum(1 for r in records if r["success"]) / len(records) if records else 0.0
     avg_oracle_score = mean([r["oracle_score"] for r in records]) if records else 0.0
-    print(f"END evaluation_run episodes_completed={len(records)} success_rate={success_rate:.3f} avg_oracle_score={avg_oracle_score:.3f}")
 
-    print_summary(records)
+    print(f"\nEvaluation complete: {len(records)} episodes, {success_rate*100:.1f}% success rate")
     print(f"\nSaved CSV: {csv_path}")
     print(f"Saved plot: {plot1}")
     print(f"Saved plot: {plot2}")
