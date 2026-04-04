@@ -77,6 +77,7 @@ def run_compliant_episode(task_id: str = "easy", agent: str = "heuristic", verbo
     
     # Final oracle score from last step info
     oracle_score = float(final_info.get("oracle_score", 0.0))
+    oracle_score = min(max(oracle_score, 0.0), 1.0)  # Defensive: clamp to [0.0, 1.0]
     success = oracle_score >= 0.8
     
     return {
