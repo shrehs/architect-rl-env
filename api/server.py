@@ -1,3 +1,4 @@
+import os
 from typing import Any, Dict, Optional
 
 from fastapi import FastAPI, HTTPException, Request
@@ -6,6 +7,11 @@ from pydantic import BaseModel, Field
 from env.environment import ArchitectEnv
 from env.models import Action, Observation
 from env.tasks import TASKS
+
+# Environment variables (not used in implementation, but handled for compatibility)
+API_BASE_URL = os.getenv("API_BASE_URL", "not_used")
+MODEL_NAME = os.getenv("MODEL_NAME", "not_used")
+HF_TOKEN = os.getenv("HF_TOKEN", "not_used")
 
 
 class StepRequest(BaseModel):

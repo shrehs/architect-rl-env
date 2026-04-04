@@ -619,6 +619,10 @@ ArchitectEnv is fully self-contained:
 - No model dependencies
 - No authentication required
 
+**Note on Environment Variables:**
+
+The submission checklist may reference environment variables such as `API_BASE_URL`, `MODEL_NAME`, and `HF_TOKEN`. These are **not used in this implementation**, as ArchitectEnv operates entirely independently. For compatibility purposes, the code includes fallback handling that sets these to `"not_used"` if provided. No dummy values need to be set unless explicitly required by submission infrastructure.
+
 ---
 
 ## 📦 OpenEnv Compliance
