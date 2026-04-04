@@ -1,0 +1,44 @@
+id: architect-rl-env
+name: Architect RL Environment
+version: 1.0.0
+
+description: >
+  A real-world environment where an AI agent gathers system design constraints
+  and recommends appropriate architectures.
+
+entry_point: env.environment:ArchitectEnv
+
+tasks:
+  - id: easy
+    description: Collect clear constraints and recommend architecture
+    max_steps: 8
+
+  - id: medium
+    description: Handle vague or partial user responses
+    max_steps: 8
+
+  - id: hard
+    description: Handle conflicting constraints and optimize trade-offs
+    max_steps: 8
+
+observation_space:
+  type: object
+  properties:
+    last_assistant_message:
+      type: string
+    constraints_collected:
+      type: object
+    missing_constraints:
+      type: array
+      items:
+        type: string
+    mode:
+      type: string
+    step_count:
+      type: integer
+
+action_space:
+  type: object
+  properties:
+    type:
+      type: string

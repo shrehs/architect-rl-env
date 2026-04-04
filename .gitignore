@@ -1,0 +1,35 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Local environments
+.env
+.envrc
+.venv/
+venv/
+
+# Packaging artifacts
+build/
+dist/
+*.egg-info/
+
+# Coverage and reports
+.coverage
+.coverage.*
+htmlcov/
+
+# Type checker and linter caches
+.mypy_cache/
+.ruff_cache/
+
+# IDE/editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
