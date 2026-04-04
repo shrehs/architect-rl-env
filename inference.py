@@ -4,7 +4,12 @@ import os
 from pathlib import Path
 from typing import Any, Dict, List
 
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # python-dotenv not required for core functionality
+
 from openai import OpenAI
 
 from env.agents import choose_action
@@ -45,28 +50,42 @@ def run_episode(task_id: str, action_types: List[str]) -> Dict[str, Any]:
     return {"task_id": task_id, "trajectory": trajectory, "final_state": env.state()}
 
 
-def run_compliant_episode(task_id: str = "easy", agent: str = "heuristic") -> Dict[str, Any]:
+def run_compliant_episode(task_id: str = "easy", agent: str = "heuristic", verbose: bool = False) -> Dict[str, Any]:
     """Run episode with compliant [START]/[STEP]/[END] logging."""
     env = ArchitectEnv(task_id=task_id)
     observation = env.reset()
     
     rewards: List[float] = []
+    oracle_scores: List[float] = []
     steps = 0
+    final_info = {}
     
-    for _ in range(env.max_steps):
+    for step_num in range(env.max_steps):
         action_type = choose_action(agent, observation)
         observation, reward, done, info = env.step(Action(type=action_type))
         
         rewards.append(reward)
         steps += 1
+        final_info = info
+        
+        # Extract oracle score for this step (0.0-1.0)
+        step_oracle_score = float(info.get("oracle_score", 0.0))
+        oracle_scores.append(step_oracle_score)
+        
+        # Output [STEP] log with normalized values
+        if verbose:
+            normalized_reward = min(reward / 2.0, 1.0)  # Normalize to ~[0,1]
+            print(f"[STEP] step={steps} action={action_type} reward={normalized_reward:.2f} oracle_score={step_oracle_score:.2f}")
         
         if done:
             break
     
     # Final oracle score from last step info
-    final_info = info if 'info' in locals() else {}
     oracle_score = float(final_info.get("oracle_score", 0.0))
     success = oracle_score >= 0.8
+    
+    # Normalize rewards for output (they can be up to 2.0 internally)
+    normalized_rewards = [min(r / 2.0, 1.0) for r in rewards]
     
     return {
         "task_id": task_id,
@@ -74,7 +93,8 @@ def run_compliant_episode(task_id: str = "easy", agent: str = "heuristic") -> Di
         "steps": steps,
         "success": success,
         "oracle_score": oracle_score,
-        "rewards": rewards,
+        "rewards": normalized_rewards,  # Normalized rewards for output
+        "raw_rewards": rewards,  # Raw rewards for debugging  
         "final_state": env.state()
     }
 
@@ -146,7 +166,7 @@ def main() -> None:
     if args.compliant:
         print(f"[START] task={args.task} env=architectenv model={MODEL_NAME}")
         try:
-            result = run_compliant_episode(task_id=args.task, agent=args.agent)
+            result = run_compliant_episode(task_id=args.task, agent=args.agent, verbose=True)
             rewards_str = ",".join(f"{r:.2f}" for r in result["rewards"])
             print(f"[END] success={str(result['success']).lower()} steps={result['steps']} score={result['oracle_score']:.2f} rewards={rewards_str}")
         except Exception as e:
