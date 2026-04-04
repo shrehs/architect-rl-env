@@ -193,11 +193,19 @@ def test_oracle_returns_structured_output() -> None:
         }
     )
 
-    assert set(oracle.keys()) == {"model", "deployment", "architecture", "reasoning"}
-    assert isinstance(oracle["reasoning"], list)
-    assert isinstance(oracle["model"], str)
-    assert isinstance(oracle["deployment"], str)
-    assert isinstance(oracle["architecture"], str)
+    # Feature 9: Oracle now returns primary recommendation + alternatives for trajectory diversity
+    assert set(oracle.keys()) == {"primary", "alternatives", "valid_paths", "path_count"}
+    assert isinstance(oracle["primary"], dict)
+    assert isinstance(oracle["alternatives"], list)
+    assert isinstance(oracle["valid_paths"], list)
+    
+    # Primary has the original structure
+    primary = oracle["primary"]
+    assert set(primary.keys()) == {"model", "deployment", "architecture", "reasoning"}
+    assert isinstance(primary["reasoning"], list)
+    assert isinstance(primary["model"], str)
+    assert isinstance(primary["deployment"], str)
+    assert isinstance(primary["architecture"], str)
 
 
 def test_oracle_hard_task_returns_compromise() -> None:
@@ -214,9 +222,14 @@ def test_oracle_hard_task_returns_compromise() -> None:
         }
     )
 
-    assert oracle["model"] == "small_transformer"
-    assert oracle["deployment"] == "edge + batch hybrid"
-    assert oracle["architecture"] == "cost-optimized streaming compromise"
+    # Feature 9: Check primary recommendation in the new format
+    assert oracle["primary"]["model"] == "small_transformer"
+    assert oracle["primary"]["deployment"] == "edge + batch hybrid"
+    assert oracle["primary"]["architecture"] == "cost-optimized streaming compromise"
+    
+    # Verify alternatives exist for trajectory diversity
+    assert len(oracle["alternatives"]) > 0
+    assert len(oracle["valid_paths"]) > 1  # Should have primary + alternatives
 
 
 def test_random_spam_does_not_score_high() -> None:
