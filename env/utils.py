@@ -1,6 +1,7 @@
 from typing import Dict, List
 
 
+# Core required constraints for all system design interviews
 REQUIRED_CONSTRAINTS: List[str] = [
     "use_case",
     "latency",
@@ -8,6 +9,20 @@ REQUIRED_CONSTRAINTS: List[str] = [
     "data_size",
     "update_frequency",
 ]
+
+# Optional system design constraints that provide deeper understanding
+SYSTEM_DESIGN_CONSTRAINTS: List[str] = [
+    "consistency_requirement",  # CAP theorem
+    "traffic_pattern",  # Load balancing
+    "geography",  # CDN/replication
+    "fault_tolerance",  # Availability
+    "queueing_needs",  # Message queues
+    "rate_limiting",  # API protection
+    "budget",  # System design tradeoffs
+]
+
+# Full set of all constraints
+ALL_CONSTRAINTS = REQUIRED_CONSTRAINTS + SYSTEM_DESIGN_CONSTRAINTS
 
 
 def _normalize_text(text: str) -> str:
@@ -18,20 +33,43 @@ def extract_constraints(text: str, existing: Dict[str, str]) -> Dict[str, str]:
     normalized = _normalize_text(text)
     discovered: Dict[str, str] = {}
 
-    if "use case" in normalized or "goal" in normalized:
+    # Core constraints
+    if "use case" in normalized or "goal" in normalized or "application" in normalized:
         discovered["use_case"] = text
 
-    if "ms" in normalized or "latency" in normalized or "real-time" in normalized:
+    if "ms" in normalized or "latency" in normalized or "real-time" in normalized or "response time" in normalized:
         discovered["latency"] = text
 
-    if "accuracy" in normalized or "%" in normalized or "precise" in normalized:
+    if "accuracy" in normalized or "%" in normalized or "precise" in normalized or "correctness" in normalized:
         discovered["accuracy"] = text
 
-    if "gb" in normalized or "tb" in normalized or "dataset" in normalized:
+    if "gb" in normalized or "tb" in normalized or "dataset" in normalized or "scale" in normalized or "volume" in normalized:
         discovered["data_size"] = text
 
-    if "daily" in normalized or "hourly" in normalized or "stream" in normalized or "continuous" in normalized:
+    if "daily" in normalized or "hourly" in normalized or "stream" in normalized or "continuous" in normalized or "update" in normalized or "frequency" in normalized:
         discovered["update_frequency"] = text
+
+    # System design constraints
+    if "consistent" in normalized or "consistency" in normalized or "strong" in normalized or "eventual" in normalized or "cap" in normalized:
+        discovered["consistency_requirement"] = text
+
+    if "traffic" in normalized or "load" in normalized or "bursty" in normalized or "steady" in normalized or "spiky" in normalized:
+        discovered["traffic_pattern"] = text
+
+    if "region" in normalized or "global" in normalized or "cdn" in normalized or "geograph" in normalized or "latency" in normalized:
+        discovered["geography"] = text
+
+    if "fault" in normalized or "tolerance" in normalized or "availability" in normalized or "uptime" in normalized or "sla" in normalized:
+        discovered["fault_tolerance"] = text
+
+    if "queue" in normalized or "async" in normalized or "kafka" in normalized or "rabbit" in normalized or "message" in normalized:
+        discovered["queueing_needs"] = text
+
+    if "rate" in normalized or "limit" in normalized or "quota" in normalized or "throttle" in normalized or "protect" in normalized:
+        discovered["rate_limiting"] = text
+
+    if "budget" in normalized or "cost" in normalized or "expensive" in normalized or "cheap" in normalized:
+        discovered["budget"] = text
 
     merged = dict(existing)
     merged.update(discovered)
@@ -40,6 +78,27 @@ def extract_constraints(text: str, existing: Dict[str, str]) -> Dict[str, str]:
 
 def missing_constraints(constraints: Dict[str, str]) -> List[str]:
     return [key for key in REQUIRED_CONSTRAINTS if key not in constraints]
+
+
+def get_system_design_implications(constraints: Dict[str, str]) -> Dict[str, List[str]]:
+    """
+    Maps constraints to real system design patterns and concepts.
+    Helps agents understand CAP theorem, load balancing, availability, etc.
+    """
+    from .tasks import CONSTRAINT_CONCEPTS
+    
+    implications = {}
+    
+    for constraint_key, constraint_value in constraints.items():
+        if constraint_key in CONSTRAINT_CONCEPTS:
+            concept_info = CONSTRAINT_CONCEPTS[constraint_key]
+            implications[constraint_key] = {
+                "concept": concept_info.get("concept", ""),
+                "description": concept_info.get("description", ""),
+                "implications": concept_info.get("implications", []),
+            }
+    
+    return implications
 
 
 def generate_recommendation(constraints: Dict[str, str]) -> str:

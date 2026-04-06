@@ -82,6 +82,34 @@ def run_one_episode(task_id: str, mode: str, agent: str, global_path_frequency: 
     counterfactual_gain_diff = float(final_info.get("counterfactual_gain_diff", 0.0))
     counterfactual_reward = float(final_info.get("counterfactual_reward", 0.0))
     efficiency_reward = float(final_info.get("efficiency_reward", 0.0))
+    consistency_reward = float(final_info.get("consistency_reward", 0.0))
+    consistency_score = float(final_info.get("consistency_score", 1.0))
+    global_efficiency_score = float(final_info.get("global_efficiency_score", 0.0))
+    global_efficiency_reward = float(final_info.get("global_efficiency_reward", 0.0))
+    recovery_score = float(final_info.get("recovery_score", 1.0))
+    trajectory_score = float(final_info.get("trajectory_score", 0.0))
+    
+    # Feature: Exploration Completeness
+    exploration_completeness = float(final_info.get("exploration_completeness", 0.0))
+    exploration_bonus = float(final_info.get("exploration_bonus", 0.0))
+    discovered_constraints = int(final_info.get("discovered_constraints", 0))
+    
+    # Feature: Trajectory-Level Evaluation (Step-wise Reasoning Quality)
+    information_gain_score = float(final_info.get("information_gain_score", 1.0))
+    early_discoveries = int(final_info.get("early_discoveries", 0))
+    late_discoveries = int(final_info.get("late_discoveries", 0))
+    utilization_score = float(final_info.get("utilization_score", 0.0))
+    constraints_used = int(final_info.get("constraints_used", 0))
+    constraints_observed = int(final_info.get("constraints_observed", 0))
+    redundancy_score = float(final_info.get("redundancy_score", 1.0))
+    total_questions = int(final_info.get("total_questions", 0))
+    repeated_questions = int(final_info.get("repeated_questions", 0))
+    trajectory_quality_bonus = float(final_info.get("trajectory_quality_bonus", 0.0))
+    trajectory_quality_reward = float(final_info.get("trajectory_quality_reward", 0.0))
+    
+    justification_score = float(final_info.get("justification_score", 0.0))
+    justification_reward = float(final_info.get("justification_reward", 0.0))
+    contradiction_handling_reward = float(final_info.get("contradiction_handling_reward", 0.0))
     regret = float(final_info.get("regret", 0.0))
     regret_penalty = float(final_info.get("regret_penalty", 0.0))
     available_checkpoints = final_info.get("available_checkpoints", [])
@@ -107,6 +135,12 @@ def run_one_episode(task_id: str, mode: str, agent: str, global_path_frequency: 
     # Feature 9 (Refined++): Time decay factor for time-aware exploration
     time_decay_factor = float(final_info.get("time_decay_factor", 1.0))
     
+    # Feature: Explicit Tradeoff Reasoning
+    detected_tradeoffs = final_info.get("detected_tradeoffs", [])
+    tradeoff_count = final_info.get("tradeoff_count", 0)
+    tradeoff_reasoning_reward = float(final_info.get("tradeoff_reasoning_reward", 0.0))
+    tradeoff_score = float(final_info.get("tradeoff_score", 0.0))
+    
     # Partial success: continuous score based on coverage and reasoning quality
     # Agents get credit proportional to what they achieved
     # partial_success = coverage × oracle_score (0.0 to 1.0 continuous)
@@ -118,6 +152,11 @@ def run_one_episode(task_id: str, mode: str, agent: str, global_path_frequency: 
     # This filters out lucky random guesses and generic patterns
     success = 1 if done and oracle_score >= 0.8 else 0
     failure_reason = "success" if success else infer_failure_reason(final_info, coverage, final_phase)
+    
+    # Composite Final Score: combines oracle accuracy with trajectory quality
+    # final_score = 0.7 * oracle_score + 0.3 * trajectory_score
+    # This rewards agents for achieving right answer (0.7) AND via good process (0.3)
+    final_score = 0.7 * oracle_score + 0.3 * trajectory_score
 
     # Feature 9 (Refined): Update global path frequency for contextual bonuses
     # Track which architectures are being chosen for adaptive exploration rewards
@@ -140,6 +179,40 @@ def run_one_episode(task_id: str, mode: str, agent: str, global_path_frequency: 
         "counterfactual_gain_diff": counterfactual_gain_diff,
         "counterfactual_reward": counterfactual_reward,
         "efficiency_reward": efficiency_reward,
+        "repeated_questions": int(final_info.get("repeated_questions", 0)),
+        "uncertainty_resolved": int(final_info.get("uncertainty_resolved", 0)),
+        "irrelevant_questions": int(final_info.get("irrelevant_questions", 0)),
+        "logical_sequences": int(final_info.get("logical_sequences", 0)),
+        "consistency_reward": consistency_reward,
+        "consistency_violations": int(final_info.get("consistency_violations", 0)),
+        "stable_constraints": int(final_info.get("stable_constraints", 0)),
+        "consistency_score": float(final_info.get("consistency_score", 1.0)),
+        "global_efficiency_score": global_efficiency_score,
+        "global_efficiency_reward": global_efficiency_reward,
+        "global_optimal_steps": int(final_info.get("global_optimal_steps", 9)),
+        "recovery_score": recovery_score,
+        "trajectory_score": trajectory_score,
+        "exploration_completeness": exploration_completeness,
+        "exploration_bonus": exploration_bonus,
+        "discovered_constraints": discovered_constraints,
+        "information_gain_score": information_gain_score,
+        "early_discoveries": early_discoveries,
+        "late_discoveries": late_discoveries,
+        "utilization_score": utilization_score,
+        "constraints_used": constraints_used,
+        "constraints_observed": constraints_observed,
+        "redundancy_score": redundancy_score,
+        "total_questions": total_questions,
+        "trajectory_quality_bonus": trajectory_quality_bonus,
+        "trajectory_quality_reward": trajectory_quality_reward,
+        "justification_score": justification_score,
+        "justification_reward": justification_reward,
+        "constraints_mentioned": int(final_info.get("constraints_mentioned", 0)),
+        "tradeoffs_mentioned": int(final_info.get("tradeoffs_mentioned", 0)),
+        "coverage_score": float(final_info.get("coverage_score", 0.0)),
+        "tradeoff_awareness_score": float(final_info.get("tradeoff_awareness_score", 0.0)),
+        "final_score": final_score,
+        "contradiction_handling_reward": contradiction_handling_reward,
         "regret": regret,
         "regret_penalty": regret_penalty,
         "had_checkpoints": 1 if available_checkpoints else 0,
@@ -155,6 +228,10 @@ def run_one_episode(task_id: str, mode: str, agent: str, global_path_frequency: 
         "policy_entropy": policy_entropy,
         "entropy_normalized": entropy_normalized,
         "time_decay_factor": time_decay_factor,
+        "detected_tradeoffs": str(detected_tradeoffs),  # Convert list to string for CSV
+        "tradeoff_count": tradeoff_count,
+        "tradeoff_reasoning_reward": tradeoff_reasoning_reward,
+        "tradeoff_score": tradeoff_score,
     }
 
 
@@ -176,6 +253,40 @@ def save_csv(records: List[Dict[str, float | int | str]], out_dir: Path) -> Path
         "counterfactual_gain_diff",
         "counterfactual_reward",
         "efficiency_reward",
+        "repeated_questions",
+        "uncertainty_resolved",
+        "irrelevant_questions",
+        "logical_sequences",
+        "consistency_reward",
+        "consistency_violations",
+        "stable_constraints",
+        "consistency_score",
+        "global_efficiency_score",
+        "global_efficiency_reward",
+        "global_optimal_steps",
+        "recovery_score",
+        "trajectory_score",
+        "exploration_completeness",
+        "exploration_bonus",
+        "discovered_constraints",
+        "information_gain_score",
+        "early_discoveries",
+        "late_discoveries",
+        "utilization_score",
+        "constraints_used",
+        "constraints_observed",
+        "redundancy_score",
+        "total_questions",
+        "trajectory_quality_bonus",
+        "trajectory_quality_reward",
+        "justification_score",
+        "justification_reward",
+        "constraints_mentioned",
+        "tradeoffs_mentioned",
+        "coverage_score",
+        "tradeoff_awareness_score",
+        "final_score",
+        "contradiction_handling_reward",
         "regret",
         "regret_penalty",
         "had_checkpoints",
@@ -191,6 +302,10 @@ def save_csv(records: List[Dict[str, float | int | str]], out_dir: Path) -> Path
         "policy_entropy",
         "entropy_normalized",
         "time_decay_factor",
+        "detected_tradeoffs",
+        "tradeoff_count",
+        "tradeoff_reasoning_reward",
+        "tradeoff_score",
     ]
     with out_path.open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
