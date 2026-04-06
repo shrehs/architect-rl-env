@@ -1,3 +1,14 @@
+---
+title: ArchitectEnv
+emoji: 🧠
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_file: api/server.py
+pinned: false
+---
+
+---
 # 🧠 ArchitectEnv
 
 ### *Process-Aware Reinforcement Learning for Multi-Step System Design*
