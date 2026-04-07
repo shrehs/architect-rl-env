@@ -24,6 +24,28 @@ HF_TOKEN = os.getenv("HF_TOKEN", "dummy")
 client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
 
 
+PRIORITY_CONSTRAINTS = [
+    ("use_case", "ASK_USE_CASE"),
+    ("latency", "ASK_LATENCY"),
+    ("accuracy", "ASK_ACCURACY"),
+    ("data_size", "ASK_DATA_SIZE"),
+    ("update_frequency", "ASK_UPDATE_FREQUENCY"),
+    ("budget", "ASK_BUDGET"),
+]
+
+
+def prioritized_constraint_action(observation: Any) -> str:
+    missing = set(observation.missing_constraints or [])
+    collected = observation.constraints_collected or {}
+
+    for key, action in PRIORITY_CONSTRAINTS:
+        value = str(collected.get(key, "")).strip()
+        if key in missing or not value:
+            return action
+
+    return ""
+
+
 def run_episode(task_id: str, action_types: List[str]) -> Dict[str, Any]:
     env = ArchitectEnv(task_id=task_id)
     first_observation = env.reset()
@@ -54,11 +76,18 @@ def run_compliant_episode(task_id: str = "easy", agent: str = "heuristic", verbo
     observation = env.reset()
     
     rewards: List[float] = []
+    last_actions: List[str] = []
     steps = 0
     final_info = {}
     
     for step_num in range(env.max_steps):
-        action_type = choose_action(agent, observation)
+        action_type = prioritized_constraint_action(observation)
+        if not action_type:
+            action_type = choose_action(agent, observation)
+        # Prevent infinite repetition by forcing exploratory fallback.
+        if len(last_actions) >= 2 and all(a == action_type for a in last_actions[-2:]):
+            action_type = "ASK_LATENCY"
+        last_actions.append(action_type)
         observation, reward, done, info = env.step(Action(type=action_type))
         
         # Normalize reward ONCE and append: single source of truth
@@ -67,25 +96,35 @@ def run_compliant_episode(task_id: str = "easy", agent: str = "heuristic", verbo
         steps += 1
         final_info = info
         
-        # Output [STEP] log with strict format: step, action, reward, done, error
-        if verbose:
-            done_str = "true" if done else "false"
-            print(f"[STEP] step={steps} action={action_type} reward={normalized_reward:.2f} done={done_str} error=null")
+        # Output minimal validator format: [STEP] step, action, reward.
+        print(
+            f"[STEP] step={steps} action={action_type} reward={normalized_reward:.2f}",
+            flush=True,
+        )
         
         if done:
             break
     
     # Final oracle score from last step info
+    constraints_collected_count = int(final_info.get("constraints_collected_count", 0))
     oracle_score = float(final_info.get("oracle_score", 0.0))
+    if constraints_collected_count == 0:
+        oracle_score = 0.0
     oracle_score = min(max(oracle_score, 0.0), 1.0)  # Defensive: clamp to [0.0, 1.0]
     success = oracle_score >= 0.8
     
+    combined_reward = final_info.get("combined_reward") or (
+        0.7 * float(final_info.get("oracle_score", 0.0))
+        + 0.3 * float(final_info.get("trajectory_score", 0.0))
+    )
+
     return {
         "task_id": task_id,
         "agent": agent,
         "steps": steps,
         "success": success,
         "oracle_score": oracle_score,
+        "combined_reward": float(combined_reward),
         "rewards": rewards,  # Already normalized [0,1]
         "final_state": env.state()
     }
@@ -147,35 +186,30 @@ def json_mode(input_path: str, output_path: str) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="ArchitectRL baseline inference runner")
+    parser = argparse.ArgumentParser(description="ArchitectRL inference runner")
     parser.add_argument("--task", default="easy", choices=["easy", "medium", "hard"])
-    parser.add_argument("--json-input", default="")
-    parser.add_argument("--json-output", default="")
     parser.add_argument("--agent", default="heuristic", choices=["manual", "random", "heuristic"])
-    parser.add_argument("--compliant", action="store_true", help="Output compliant [START]/[STEP]/[END] logs")
+    parser.add_argument("--num-episodes", type=int, default=1)
     args = parser.parse_args()
 
-    if args.compliant:
-        print(f"[START] task={args.task} env=architectenv model={MODEL_NAME}")
+    num_episodes = max(1, args.num_episodes)
+
+    for _ in range(num_episodes):
+        print(f"[START] task={args.task}", flush=True)
         try:
             result = run_compliant_episode(task_id=args.task, agent=args.agent, verbose=True)
-            rewards_str = ",".join(f"{r:.2f}" for r in result["rewards"])
-            print(f"[END] success={str(result['success']).lower()} steps={result['steps']} score={result['oracle_score']:.2f} rewards={rewards_str}")
-        except Exception as e:
-            print(f"[END] success=false steps=0 score=0.00 rewards=")
+            final_score = float(result.get("combined_reward", result.get("oracle_score", 0.0)))
+            final_score = min(final_score, 1.0)
+            print(
+                f"[END] task={args.task} score={final_score:.2f} steps={result['steps']}",
+                flush=True,
+            )
+        except Exception:
+            print(
+                f"[END] task={args.task} score=0.00 steps=0",
+                flush=True,
+            )
             raise
-        return
-
-    if args.agent in {"random", "heuristic"}:
-        result = run_policy_episode(task_id=args.task, agent=args.agent)
-        print(json.dumps(result, indent=2))
-        return
-
-    if args.json_input and args.json_output:
-        json_mode(args.json_input, args.json_output)
-        return
-
-    interactive_mode(args.task)
 
 
 if __name__ == "__main__":
