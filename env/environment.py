@@ -14,6 +14,20 @@ from .utils import REQUIRED_CONSTRAINTS, extract_constraints, generate_recommend
 MAX_CONTEXT_TOKENS = 300  # simulate LLM context limit
 
 
+# Task registry with graders (OpenEnv compliance)
+TASK_REGISTRY = {
+    "easy": {
+        "grader": lambda traj: traj[-1]["info"].get("combined_reward", 0.0) if traj and isinstance(traj, list) else 0.0
+    },
+    "medium": {
+        "grader": lambda traj: traj[-1]["info"].get("combined_reward", 0.0) if traj and isinstance(traj, list) else 0.0
+    },
+    "hard": {
+        "grader": lambda traj: traj[-1]["info"].get("combined_reward", 0.0) if traj and isinstance(traj, list) else 0.0
+    },
+}
+
+
 class ArchitectEnv:
     """Strict OpenEnv contract implementation.
 
@@ -26,6 +40,10 @@ class ArchitectEnv:
     def __init__(self, task_id: str = "easy", max_steps: int = 30, exploration_alpha: float = 1.0):
         self.tasks = list(TASKS_WITH_GRADERS)
         self.task_id = task_id if task_id in TASKS else "easy"
+        
+        # OpenEnv compliance: attach grader function
+        self.grader = TASK_REGISTRY.get(self.task_id, {}).get("grader", lambda traj: 0.0)
+        
         self.max_steps = max_steps
         self.optimal_steps = {"easy": 6, "medium": 9, "hard": 12}  # Target efficient paths
         self.checkpoints = {}  # step_id -> state snapshot for branching
@@ -849,6 +867,10 @@ class ArchitectEnv:
 
     def state(self) -> dict:
         return deepcopy(self.state_data)
+    
+    def get_grader(self):
+        """Return the grader function for this task (OpenEnv compliance)."""
+        return self.grader
 
     def _build_observation(self) -> Observation:
         visible_messages = self._prune_messages(self.state_data["messages"])
