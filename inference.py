@@ -220,29 +220,33 @@ def json_mode(input_path: str, output_path: str) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="ArchitectRL inference runner")
-    parser.add_argument("--task", default="easy", choices=["easy", "medium", "hard"])
+    parser.add_argument("--task", default=None, choices=["easy", "medium", "hard"])
     parser.add_argument("--agent", default="heuristic", choices=["manual", "random", "heuristic"])
     parser.add_argument("--num-episodes", type=int, default=1)
     args = parser.parse_args()
 
     num_episodes = max(1, args.num_episodes)
+    
+    # If specific task specified, run only that task
+    tasks_to_run = [args.task] if args.task else ["easy", "medium", "hard"]
 
     for _ in range(num_episodes):
-        print(f"[START] task={args.task}", flush=True)
-        try:
-            result = run_compliant_episode(task_id=args.task, agent=args.agent, verbose=True)
-            final_score = float(result.get("combined_reward", result.get("oracle_score", 0.0)))
-            final_score = min(final_score, 1.0)
-            print(
-                f"[END] task={args.task} score={final_score:.2f} steps={result['steps']}",
-                flush=True,
-            )
-        except Exception:
-            print(
-                f"[END] task={args.task} score=0.00 steps=0",
-                flush=True,
-            )
-            raise
+        for task in tasks_to_run:
+            print(f"[START] task={task}", flush=True)
+            try:
+                result = run_compliant_episode(task_id=task, agent=args.agent, verbose=True)
+                final_score = float(result.get("combined_reward", result.get("oracle_score", 0.0)))
+                final_score = min(final_score, 1.0)
+                print(
+                    f"[END] task={task} score={final_score:.2f} steps={result['steps']}",
+                    flush=True,
+                )
+            except Exception:
+                print(
+                    f"[END] task={task} score=0.00 steps=0",
+                    flush=True,
+                )
+                raise
 
 
 if __name__ == "__main__":
