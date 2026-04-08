@@ -22,14 +22,8 @@ API_KEY = os.getenv("API_KEY")
 USE_LLM = API_KEY is not None and API_BASE is not None
 
 
-PRIORITY_CONSTRAINTS = [
-    ("use_case", "ASK_USE_CASE"),
-    ("latency", "ASK_LATENCY"),
-    ("accuracy", "ASK_ACCURACY"),
-    ("data_size", "ASK_DATA_SIZE"),
-    ("update_frequency", "ASK_UPDATE_FREQUENCY"),
-    ("budget", "ASK_BUDGET"),
-]
+# Best-performing policy: collect all required constraints
+REQUIRED_CONSTRAINTS = ["use_case", "latency", "accuracy", "data_size", "update_frequency"]
 
 
 def ping_llm(observation: Any) -> str:
@@ -59,16 +53,27 @@ def ping_llm(observation: Any) -> str:
         return None
 
 
-def prioritized_constraint_action(observation: Any) -> str:
-    missing = set(observation.missing_constraints or [])
+def prioritized_constraint_action(observation: Any, step_count: int = 0) -> str:
+    """Best-performing policy: collect all required constraints, then finalize."""
     collected = observation.constraints_collected or {}
-
-    for key, action in PRIORITY_CONSTRAINTS:
-        value = str(collected.get(key, "")).strip()
-        if key in missing or not value:
-            return action
-
-    return ""
+    missing = observation.missing_constraints or []
+    
+    # Check if all required constraints collected
+    has_all_required = all(k in collected for k in REQUIRED_CONSTRAINTS)
+    
+    if has_all_required:
+        return "FINALIZE"
+    
+    # Smart extension: ask for budget if step_count >= 5
+    if "budget" not in collected and step_count >= 5:
+        return "ASK_BUDGET"
+    
+    # Otherwise ask for first missing required constraint
+    for required_key in REQUIRED_CONSTRAINTS:
+        if required_key not in collected:
+            return f"ASK_{required_key.upper()}"
+    
+    return "FINALIZE"
 
 
 def run_episode(task_id: str, action_types: List[str]) -> Dict[str, Any]:
@@ -107,12 +112,14 @@ def run_compliant_episode(task_id: str = "easy", agent: str = "heuristic", verbo
     
     for step_num in range(env.max_steps):
         _ = ping_llm(observation)
-        action_type = prioritized_constraint_action(observation)
+        action_type = prioritized_constraint_action(observation, steps)
         if not action_type:
             action_type = choose_action(agent, observation)
-        # Prevent infinite repetition by forcing exploratory fallback.
+        
+        # Prevent infinite repetition: if last 2 actions identical, finalize
         if len(last_actions) >= 2 and all(a == action_type for a in last_actions[-2:]):
-            action_type = "ASK_LATENCY"
+            action_type = "FINALIZE"
+        
         last_actions.append(action_type)
         observation, reward, done, info = env.step(Action(type=action_type))
         
