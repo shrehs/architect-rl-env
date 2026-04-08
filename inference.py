@@ -26,6 +26,15 @@ USE_LLM = API_KEY is not None and API_BASE is not None
 REQUIRED_CONSTRAINTS = ["use_case", "latency", "accuracy", "data_size", "update_frequency"]
 
 
+def normalize_score(score: float) -> float:
+    """Clamp score to [0.01, 0.99] range for platform compatibility."""
+    if score <= 0.0:
+        return 0.01
+    if score >= 1.0:
+        return 0.99
+    return score
+
+
 def ping_llm(observation: Any) -> str:
     if not USE_LLM:
         return None
@@ -236,14 +245,14 @@ def main() -> None:
             try:
                 result = run_compliant_episode(task_id=task, agent=args.agent, verbose=True)
                 final_score = float(result.get("combined_reward", result.get("oracle_score", 0.0)))
-                final_score = min(final_score, 1.0)
+                final_score = normalize_score(final_score)
                 print(
                     f"[END] task={task} score={final_score:.2f} steps={result['steps']}",
                     flush=True,
                 )
             except Exception:
                 print(
-                    f"[END] task={task} score=0.00 steps=0",
+                    f"[END] task={task} score=0.01 steps=0",
                     flush=True,
                 )
                 raise
