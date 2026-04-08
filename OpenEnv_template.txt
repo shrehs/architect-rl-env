@@ -9,10 +9,13 @@ entrypoint: api.server:app
 tasks:
   - id: easy
     description: Collect clear constraints and recommend architecture
+    grader: env.tasks:default_task_grader
   - id: medium
     description: Handle vague or partial user responses
+    grader: env.tasks:default_task_grader
   - id: hard
     description: Handle conflicting constraints and optimize trade-offs
+    grader: env.tasks:default_task_grader
 
 observation_space:
   type: object

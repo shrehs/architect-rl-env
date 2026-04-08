@@ -12,14 +12,17 @@ tasks:
   - id: easy
     description: Collect clear constraints and recommend architecture
     max_steps: 8
+    grader: env.tasks:default_task_grader
 
   - id: medium
     description: Handle vague or partial user responses
     max_steps: 8
+    grader: env.tasks:default_task_grader
 
   - id: hard
     description: Handle conflicting constraints and optimize trade-offs
     max_steps: 8
+    grader: env.tasks:default_task_grader
 
 observation_space:
   type: object

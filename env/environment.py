@@ -5,7 +5,7 @@ from typing import Dict, Tuple, Any, List
 from enum import Enum
 
 from .models import Action, Message, Observation
-from .tasks import TASKS
+from .tasks import TASKS, TASKS_WITH_GRADERS
 from .oracle import oracle_recommend
 from .user_simulator import UserSimulator
 from .utils import REQUIRED_CONSTRAINTS, extract_constraints, generate_recommendation, missing_constraints
@@ -24,6 +24,7 @@ class ArchitectEnv:
     """
 
     def __init__(self, task_id: str = "easy", max_steps: int = 30, exploration_alpha: float = 1.0):
+        self.tasks = list(TASKS_WITH_GRADERS)
         self.task_id = task_id if task_id in TASKS else "easy"
         self.max_steps = max_steps
         self.optimal_steps = {"easy": 6, "medium": 9, "hard": 12}  # Target efficient paths

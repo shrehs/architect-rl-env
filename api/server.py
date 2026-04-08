@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 from env.environment import ArchitectEnv
 from env.models import Action, Observation
-from env.tasks import TASKS
+from env.tasks import TASKS, TASKS_WITH_GRADERS
 
 # Environment variables (not used in implementation, but handled for compatibility)
 API_BASE_URL = os.getenv("API_BASE_URL", "not_used")
@@ -35,7 +35,15 @@ def health() -> Dict[str, str]:
 
 @app.get("/tasks")
 def tasks() -> Dict[str, Any]:
-    return {"tasks": TASKS}
+    graded = [
+        {
+            "task_id": item["task_id"],
+            "difficulty": item["difficulty"],
+            "grader": "default_task_grader",
+        }
+        for item in TASKS_WITH_GRADERS
+    ]
+    return {"tasks": TASKS, "tasks_with_graders": graded}
 
 
 @app.api_route("/reset", methods=["GET", "POST"], response_model=Observation)

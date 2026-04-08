@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from .utils import REQUIRED_CONSTRAINTS, has_conflicting_constraints
 
@@ -190,3 +190,22 @@ def grade_constraints(constraints: Dict[str, str], task_id: str) -> float:
         score += 0.15 if has_conflicting_constraints(constraints) else 0.0
 
     return float(max(0.0, min(1.0, score)))
+
+
+def default_task_grader(state: Dict[str, Any], task_id: str) -> Dict[str, float]:
+    observed = state.get("observed_constraints", {}) if isinstance(state, dict) else {}
+    if not isinstance(observed, dict):
+        observed = {}
+    score = grade_constraints(observed, task_id)
+    return {"score": float(score)}
+
+
+TASKS_WITH_GRADERS: List[Dict[str, Any]] = [
+    {
+        "task_id": task_id,
+        "difficulty": task_id,
+        "hidden_constraints": dict(task.get("constraints", {})),
+        "grader": default_task_grader,
+    }
+    for task_id, task in TASKS.items()
+]
