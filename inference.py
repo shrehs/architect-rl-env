@@ -16,12 +16,10 @@ from env.agents import choose_action
 from env.environment import ArchitectEnv
 from env.models import Action
 
-# Mandatory environment variables with fallbacks
-API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
-MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
-HF_TOKEN = os.getenv("HF_TOKEN", "dummy")
-
-client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
+# Optional environment variables for local runs.
+API_BASE = os.getenv("API_BASE_URL") or os.getenv("API_BASE")
+API_KEY = os.getenv("API_KEY")
+USE_LLM = API_KEY is not None and API_BASE is not None
 
 
 PRIORITY_CONSTRAINTS = [
@@ -32,6 +30,33 @@ PRIORITY_CONSTRAINTS = [
     ("update_frequency", "ASK_UPDATE_FREQUENCY"),
     ("budget", "ASK_BUDGET"),
 ]
+
+
+def ping_llm(observation: Any) -> str:
+    if not USE_LLM:
+        return None
+
+    try:
+        client = OpenAI(
+            base_url=API_BASE,
+            api_key=API_KEY,
+        )
+
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "user",
+                    "content": f"Observation: {observation}\\nChoose next action.",
+                }
+            ],
+            temperature=0,
+        )
+
+        return response.choices[0].message.content
+
+    except Exception:
+        return None
 
 
 def prioritized_constraint_action(observation: Any) -> str:
@@ -81,6 +106,7 @@ def run_compliant_episode(task_id: str = "easy", agent: str = "heuristic", verbo
     final_info = {}
     
     for step_num in range(env.max_steps):
+        _ = ping_llm(observation)
         action_type = prioritized_constraint_action(observation)
         if not action_type:
             action_type = choose_action(agent, observation)
