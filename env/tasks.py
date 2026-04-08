@@ -192,12 +192,43 @@ def grade_constraints(constraints: Dict[str, str], task_id: str) -> float:
     return float(max(0.0, min(1.0, score)))
 
 
-def default_task_grader(state: Dict[str, Any], task_id: str) -> Dict[str, float]:
-    observed = state.get("observed_constraints", {}) if isinstance(state, dict) else {}
-    if not isinstance(observed, dict):
-        observed = {}
-    score = grade_constraints(observed, task_id)
-    return {"score": float(score)}
+def default_task_grader(trajectory, task, **kwargs):
+    """
+    Bulletproof validator-compatible grader.
+    
+    Args:
+        trajectory: list of step dicts with info
+        task: task config dict (handles both "id" and "task_id" keys)
+        **kwargs: flexible for other validator formats
+    
+    Returns:
+        {"score": float [0-1], "success": bool}
+    """
+    try:
+        task_id = task.get("id") or task.get("task_id")
+
+        if not trajectory:
+            return {"score": 0.0, "success": False}
+
+        final_step = trajectory[-1]
+        info = final_step.get("info", {})
+
+        score = (
+            info.get("combined_reward")
+            or info.get("oracle_score", 0.0)
+            or 0.0
+        )
+
+        return {
+            "score": float(score),
+            "success": bool(score > 0.5)
+        }
+
+    except Exception:
+        return {
+            "score": 0.0,
+            "success": False
+        }
 
 
 TASKS_WITH_GRADERS: List[Dict[str, Any]] = [
