@@ -600,6 +600,7 @@ class ArchitectEnv:
             reward = step_reward + efficiency_reward
 
             similarity = self._compare(agent_structured, oracle_output)
+            similarity = max(0.01, min(0.99, similarity))
             terminal_similarity = (similarity * coverage) * self.terminal_reward_weight
             reward += terminal_similarity
             info["oracle_score"] = similarity

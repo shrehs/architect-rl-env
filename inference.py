@@ -29,6 +29,7 @@ USE_LLM = API_KEY is not None
 # Model and environment identifiers (required for output format)
 MODEL_NAME = "gpt-4o-mini"
 ENV_NAME = "architectenv"
+DEBUG = os.getenv("DEBUG", "false").strip().lower() == "true"
 
 # Initialize OpenAI client at module level (critical for platform validation)
 try:
@@ -404,17 +405,20 @@ def prioritized_constraint_action(observation: Any, step_count: int = 0) -> str:
         if readiness["high_confidence"] and readiness["conflicts"]:
             if readiness["allow_compromise_finalize"]:
                 tradeoff = analyze_conflict_tradeoff(collected)
-                print(f"[TRADEOFF] {tradeoff or fallback_tradeoff_text(readiness['conflicts'])}", flush=True)
+                if DEBUG:
+                    print(f"[TRADEOFF] {tradeoff or fallback_tradeoff_text(readiness['conflicts'])}", flush=True)
                 compromise_reasoning = analyze_compromise_architecture(collected, readiness["conflicts"])
-                print(
-                    f"[COMPROMISE] {compromise_reasoning or fallback_compromise_reasoning(readiness['conflicts'])}",
-                    flush=True,
-                )
+                if DEBUG:
+                    print(
+                        f"[COMPROMISE] {compromise_reasoning or fallback_compromise_reasoning(readiness['conflicts'])}",
+                        flush=True,
+                    )
                 return "FINALIZE_WITH_COMPROMISE"
             return "FINALIZE"
         if readiness["conflicts"]:
             tradeoff = analyze_conflict_tradeoff(collected)
-            print(f"[TRADEOFF] {tradeoff or fallback_tradeoff_text(readiness['conflicts'])}", flush=True)
+            if DEBUG:
+                print(f"[TRADEOFF] {tradeoff or fallback_tradeoff_text(readiness['conflicts'])}", flush=True)
         return str(readiness["clarifying_action"])
 
     latency_value = str(collected.get("latency", "")).lower()
@@ -444,17 +448,20 @@ def prioritized_constraint_action(observation: Any, step_count: int = 0) -> str:
     if readiness["high_confidence"] and readiness["conflicts"]:
         if readiness["allow_compromise_finalize"]:
             tradeoff = analyze_conflict_tradeoff(collected)
-            print(f"[TRADEOFF] {tradeoff or fallback_tradeoff_text(readiness['conflicts'])}", flush=True)
+            if DEBUG:
+                print(f"[TRADEOFF] {tradeoff or fallback_tradeoff_text(readiness['conflicts'])}", flush=True)
             compromise_reasoning = analyze_compromise_architecture(collected, readiness["conflicts"])
-            print(
-                f"[COMPROMISE] {compromise_reasoning or fallback_compromise_reasoning(readiness['conflicts'])}",
-                flush=True,
-            )
+            if DEBUG:
+                print(
+                    f"[COMPROMISE] {compromise_reasoning or fallback_compromise_reasoning(readiness['conflicts'])}",
+                    flush=True,
+                )
             return "FINALIZE_WITH_COMPROMISE"
         return "FINALIZE"
     if readiness["conflicts"]:
         tradeoff = analyze_conflict_tradeoff(collected)
-        print(f"[TRADEOFF] {tradeoff or fallback_tradeoff_text(readiness['conflicts'])}", flush=True)
+        if DEBUG:
+            print(f"[TRADEOFF] {tradeoff or fallback_tradeoff_text(readiness['conflicts'])}", flush=True)
     return str(readiness["clarifying_action"])
 
 
@@ -526,7 +533,8 @@ def run_compliant_episode(task_id: str = "easy", agent: str = "heuristic", verbo
             # Rule 5: canonical architecture mapping before finalization.
             if action_type in {"FINALIZE", "FINALIZE_WITH_COMPROMISE"} and readiness["high_confidence"] and not missing:
                 selected_architecture = choose_architecture(collected)
-                print(f"[ARCH] selected={selected_architecture}", flush=True)
+                if DEBUG:
+                    print(f"[ARCH] selected={selected_architecture}", flush=True)
 
         # Guardrail: if current action repeats last action, move to next unsatisfied constraint.
         if last_actions and last_actions[-1] == action_type:
