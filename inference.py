@@ -699,18 +699,22 @@ def main() -> None:
                 success = result.get("success", False)
                 steps = result.get("steps", 0)
                 rewards = result.get("rewards", [])
+                oracle_score = float(result.get("oracle_score", 0.5))
+                
+                # Clamp score to strict (0, 1) bounds for validator compliance
+                final_score = max(0.01, min(0.99, oracle_score))
                 
                 # Format rewards as comma-separated string
                 rewards_str = ",".join([f"{r:.2f}" for r in rewards])
                 
-                # Print [END] in required format
+                # Print [END] in required format with explicit score= field
                 print(
-                    f"[END] success={str(success).lower()} steps={steps} rewards={rewards_str}",
+                    f"[END] task={task} success={str(success).lower()} score={final_score:.2f} steps={steps}",
                     flush=True,
                 )
             except Exception:
                 print(
-                    f"[END] success=false steps=0 rewards=",
+                    f"[END] task={task} success=false score=0.01 steps=0",
                     flush=True,
                 )
                 raise
