@@ -195,6 +195,7 @@ def grade_constraints(constraints: Dict[str, str], task_id: str) -> float:
 def default_task_grader(trajectory, task, **kwargs):
     """
     Bulletproof validator-compatible grader.
+    Enforces strict interval bounds (0, 1) on all returned scores.
     
     Args:
         trajectory: list of step dicts with info
@@ -202,13 +203,14 @@ def default_task_grader(trajectory, task, **kwargs):
         **kwargs: flexible for other validator formats
     
     Returns:
-        {"score": float [0-1], "success": bool}
+        {"score": float strictly in (0, 1), "success": bool}
     """
     try:
         task_id = task.get("id") or task.get("task_id")
 
         if not trajectory:
-            return {"score": 0.0, "success": False}
+            # Return lower bound score (0.01) for no trajectory
+            return {"score": 0.01, "success": False}
 
         final_step = trajectory[-1]
         info = final_step.get("info", {})
@@ -219,14 +221,18 @@ def default_task_grader(trajectory, task, **kwargs):
             or 0.0
         )
 
+        # Clamp score to strict interval (0, 1): [0.01, 0.99]
+        clamped_score = max(0.01, min(0.99, float(score)))
+
         return {
-            "score": float(score),
-            "success": bool(score > 0.5)
+            "score": clamped_score,
+            "success": bool(clamped_score > 0.5)
         }
 
     except Exception:
+        # Return lower bound score (0.01) on exception
         return {
-            "score": 0.0,
+            "score": 0.01,
             "success": False
         }
 
