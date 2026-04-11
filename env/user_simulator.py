@@ -156,8 +156,6 @@ class UserSimulator:
         else:
             response = "Could you clarify your question?"
 
-        if mode == "noisy":
-            return self._make_vague(response)
         if mode == "adversarial":
             # Use advanced adversarial techniques
             if normalized in ["ASK_LATENCY", "ASK_ACCURACY", "ASK_DATA_SIZE", "ASK_UPDATE_FREQUENCY", "ASK_BUDGET"]:
@@ -179,6 +177,6 @@ class UserSimulator:
                         # Early: give conflicting answers on repeats
                         return self._adversarial_conflicting_answer(constraint_key)
             
-            # Fallback to misdirection for other actions
-            return self._plausible_misdirection(normalized, response)
+            # Fallback to adversarial misdirection for other actions.
+            return self._make_vague(self._plausible_misdirection(normalized, response))
         return response

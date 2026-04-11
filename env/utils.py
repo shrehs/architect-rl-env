@@ -29,24 +29,93 @@ def _normalize_text(text: str) -> str:
     return " ".join(text.lower().strip().split())
 
 
+def _bind_value(constraints: Dict[str, str], key: str, limit: int = 90) -> str:
+    """Return a compact raw constraint value for explicit recommendation grounding."""
+    raw = str(constraints.get(key, "unknown")).strip()
+    compact = " ".join(raw.split())
+    if not compact:
+        return "unknown"
+    if len(compact) <= limit:
+        return compact
+    return f"{compact[:limit - 3]}..."
+
+
+def choose_architecture(constraints: Dict[str, str]) -> str:
+    """Deterministic architecture mapping for finalize-time recommendation quality."""
+    required_keys = ["latency", "data_size", "budget"]
+    if any(not str(constraints.get(key, "")).strip() for key in required_keys):
+        return "api + relational db + caching"
+
+    latency_text = _normalize_text(str(constraints.get("latency", "")))
+    data_size_text = _normalize_text(str(constraints.get("data_size", "")))
+    budget_text = _normalize_text(str(constraints.get("budget", "")))
+    use_case_text = _normalize_text(str(constraints.get("use_case", "")))
+    update_text = _normalize_text(str(constraints.get("update_frequency", "")))
+
+    realtime_like = any(token in latency_text for token in ["real-time", "realtime", "near-real-time", "ms"])
+    strict_realtime = any(token in latency_text for token in ["real-time", "realtime", "50ms", "100ms", "p99", "under"]) 
+    budget_low_or_medium = any(token in budget_text for token in ["low", "limited", "tight", "medium", "growth"])
+
+    data_small_or_medium = any(token in data_size_text for token in ["small", "medium", "moderate", "gb"])
+    data_medium_or_large = any(token in data_size_text for token in ["medium", "large", "tb", "10tb", "tb+"])
+    data_very_large = any(token in data_size_text for token in ["very large", "100tb", "100 tb", "pb"])
+    medium_backup_signal = any(token in use_case_text for token in ["fraud", "risk", "detection"]) or any(
+        token in update_text for token in ["stream", "streaming", "near real-time", "continuous"]
+    )
+
+    # Case 3: hard-scale real-time systems.
+    if data_very_large and strict_realtime:
+        return "hybrid batch + real-time serving"
+
+    # Case 2: medium practical architecture.
+    if realtime_like and budget_low_or_medium and (data_medium_or_large or medium_backup_signal) and not data_very_large:
+        return "API + caching + periodic batch updates"
+
+    # Noisy-medium fallback: near-real-time with constrained budget should remain practical.
+    if realtime_like and (not strict_realtime) and budget_low_or_medium and not data_very_large:
+        return "API + caching + periodic batch updates"
+
+    # Case 1: easy/simple baseline (default for non-hard scenarios).
+    if (data_small_or_medium and not strict_realtime) or not data_very_large:
+        return "simple service + relational DB + caching"
+
+    return "api + relational db + caching"
+
+
 def extract_constraints(text: str, existing: Dict[str, str]) -> Dict[str, str]:
     normalized = _normalize_text(text)
     discovered: Dict[str, str] = {}
 
+    use_case_markers = [
+        "use case", "goal", "application", "recommend", "ranking", "feed", "search", "fraud", "assistant",
+    ]
+    latency_markers = [
+        "ms", "latency", "real-time", "real time", "response time", "p95", "p99",
+    ]
+    accuracy_markers = [
+        "accuracy", "%", "precise", "correctness", "f1", "auc", "recall", "precision",
+    ]
+    data_size_markers = [
+        "gb", "tb", "pb", "dataset", "scale", "volume", "records", "rows", "events",
+    ]
+    update_markers = [
+        "daily", "hourly", "stream", "streaming", "continuous", "update", "frequency", "near real-time",
+    ]
+
     # Core constraints
-    if "use case" in normalized or "goal" in normalized or "application" in normalized:
+    if any(x in normalized for x in use_case_markers):
         discovered["use_case"] = text
 
-    if "ms" in normalized or "latency" in normalized or "real-time" in normalized or "response time" in normalized:
+    if any(x in normalized for x in latency_markers):
         discovered["latency"] = text
 
-    if "accuracy" in normalized or "%" in normalized or "precise" in normalized or "correctness" in normalized:
+    if any(x in normalized for x in accuracy_markers):
         discovered["accuracy"] = text
 
-    if "gb" in normalized or "tb" in normalized or "dataset" in normalized or "scale" in normalized or "volume" in normalized:
+    if any(x in normalized for x in data_size_markers):
         discovered["data_size"] = text
 
-    if "daily" in normalized or "hourly" in normalized or "stream" in normalized or "continuous" in normalized or "update" in normalized or "frequency" in normalized:
+    if any(x in normalized for x in update_markers):
         discovered["update_frequency"] = text
 
     # System design constraints
@@ -114,23 +183,96 @@ def generate_recommendation(constraints: Dict[str, str]) -> str:
     low_budget = any(token in budget_text.lower() for token in ["low", "limited"])
     high_accuracy = any(token in accuracy_text.lower() for token in ["high", "near-perfect", "perfect", "99."])
 
+    data_size_bound = _bind_value(constraints, "data_size")
+    latency_bound = _bind_value(constraints, "latency")
+    budget_bound = _bind_value(constraints, "budget")
+    update_bound = _bind_value(constraints, "update_frequency")
+    accuracy_bound = _bind_value(constraints, "accuracy")
+
+    selected_architecture = choose_architecture(constraints)
+    simple_case = selected_architecture == "simple service + relational DB + caching"
+
+    if selected_architecture == "hybrid batch + real-time serving":
+        return (
+            "Because:\n"
+            f"- latency = {latency_bound}\n"
+            f"- data_size = {data_size_bound}\n"
+            f"- budget = {budget_bound}\n"
+            "the system needs both low-latency serving and large-scale offline processing.\n"
+            "Decision:\n"
+            "- Keep real-time inference paths lightweight\n"
+            "- Shift expensive feature/model refresh to batch windows\n"
+            "Architecture:\n"
+            "- hybrid batch + real-time serving"
+        )
+
+    if selected_architecture == "API + caching + periodic batch updates":
+        return (
+            "Because:\n"
+            f"- latency = {latency_bound}\n"
+            f"- update_frequency = {update_bound}\n"
+            f"- budget = {budget_bound}\n"
+            "the design should stay practical and scalable without over-engineering.\n"
+            "Decision:\n"
+            "- Serve through API endpoints with aggressive caching\n"
+            "- Use periodic batch updates for heavy recomputation\n"
+            "Architecture:\n"
+            "- API + caching + periodic batch updates"
+        )
+
+    if simple_case:
+        # Keep easy/simple recommendations free of over-complex keywords.
+        return (
+            "Because:\n"
+            f"- latency = {latency_bound}\n"
+            f"- data_size = {data_size_bound}\n"
+            f"- accuracy = {accuracy_bound}\n"
+            "a simple production baseline is sufficient and operationally safer.\n"
+            "Decision:\n"
+            "- Favor straightforward components with low maintenance overhead\n"
+            "- Use cache-first reads and relational storage\n"
+            "Architecture:\n"
+            "- simple service + relational DB + caching"
+        )
+
+    if selected_architecture == "api + relational db + caching":
+        return (
+            f"Because latency ~ {latency_bound}, data_size ~ {data_size_bound}, accuracy ~ {accuracy_bound}, "
+            f"and budget ~ {budget_bound}, default to a robust baseline while requirements are still incomplete. "
+            "Architecture: api + relational db + caching."
+        )
+
     if low_latency and high_data and streaming and low_budget:
         return (
-            "Recommend a balanced hybrid compromise with a small transformer on the edge, "
-            "batch fallback processing, and a streaming control plane to preserve latency under budget."
+            f"Because latency ~ {latency_bound}, data_size ~ {data_size_bound}, and budget ~ {budget_bound}, "
+            "prioritize cached online reads and controlled batch refresh. "
+            "Architecture: API + caching + periodic batch updates."
         )
 
     if low_latency and high_accuracy and streaming:
         return (
-            "Recommend a tradeoff-oriented hybrid architecture that keeps the latency-sensitive path lean "
-            "while preserving accuracy with asynchronous model refinement."
+            f"Because latency ~ {latency_bound} and accuracy ~ {accuracy_bound} are both demanding, "
+            f"with update_frequency ~ {update_bound}, use a practical staged serving pattern. "
+            "Architecture: API + caching + periodic batch updates."
         )
 
     if low_latency and streaming:
-        return "Recommend event-driven microservices with Redis caching and Kafka stream processing."
+        return (
+            f"Because latency ~ {latency_bound} and update_frequency ~ {update_bound}, "
+            "prioritize fast cached reads with periodic batch refresh. "
+            "Architecture: API + caching + periodic batch updates."
+        )
     if high_data:
-        return "Recommend batch-first lakehouse architecture with Spark jobs and feature store."
-    return "Recommend modular service-oriented architecture with API gateway and relational datastore."
+        return (
+            f"Because data_size ~ {data_size_bound} and latency ~ {latency_bound}, "
+            "use a split design with offline heavy lifting and lean online serving. "
+            "Architecture: hybrid batch + real-time serving."
+        )
+    return (
+        f"Because latency ~ {latency_bound}, data_size ~ {data_size_bound}, accuracy ~ {accuracy_bound}, "
+        f"and budget ~ {budget_bound}, keep the solution practical and maintainable. "
+        "Architecture: simple service + relational DB + caching."
+    )
 
 
 def has_conflicting_constraints(constraints: Dict[str, str]) -> bool:
