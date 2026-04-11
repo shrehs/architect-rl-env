@@ -12,19 +12,38 @@ except ImportError:
 
 from openai import OpenAI
 
+try:
+    from openenv_core import Environment as OpenEnvEnvironment
+except ImportError:
+    OpenEnvEnvironment = None  # Graceful fallback if openenv-core not available
+
 from env.agents import choose_action
 from env.environment import ArchitectEnv
 from env.models import Action
 from env.utils import choose_architecture
 
-# Environment variables: HF_TOKEN is mandatory, API_KEY is optional
+# =============================================================================
+# VALIDATOR REQUIREMENT: Must use provided LLM API (not public OpenAI)
+# =============================================================================
+# CRITICAL: Explicit environment variables with NO fallback bypass
+# Validates that the provided API endpoint is used (not public OpenAI)
+
 HF_TOKEN = os.getenv("HF_TOKEN")
 if HF_TOKEN is None:
     raise ValueError("HF_TOKEN environment variable is required")
 
-API_KEY = os.getenv("API_KEY") or HF_TOKEN  # Use API_KEY if provided, else fall back to HF_TOKEN
-API_BASE_URL = os.getenv("API_BASE_URL") or os.getenv("API_BASE") or "https://api.openai.com/v1"
-USE_LLM = API_KEY is not None
+# VALIDATOR REQUIREMENT: Explicit API_KEY and API_BASE_URL (no fallback to HF_TOKEN)
+API_KEY = os.environ["API_KEY"]
+API_BASE_URL = os.environ["API_BASE_URL"]
+
+# Validation: Prevent bypass to public OpenAI API
+if "api.openai.com" in API_BASE_URL.lower():
+    raise ValueError(
+        "ERROR: API_BASE_URL must point to provided proxy/local endpoint, not public OpenAI API. "
+        f"Got: {API_BASE_URL}"
+    )
+
+USE_LLM = True  # Always use LLM (no fallback)
 
 # Model and environment identifiers (required for output format)
 MODEL_NAME = "gpt-4o-mini"
@@ -32,13 +51,13 @@ ENV_NAME = "architectenv"
 DEBUG = os.getenv("DEBUG", "false").strip().lower() == "true"
 
 # Initialize OpenAI client at module level (critical for platform validation)
-try:
-    client = OpenAI(
-        base_url=API_BASE_URL,
-        api_key=API_KEY,
-    )
-except Exception:
-    client = None
+# VALIDATOR REQUIREMENT: Client MUST initialize successfully with provided credentials
+client = OpenAI(
+    base_url=os.environ["API_BASE_URL"],
+    api_key=os.environ["API_KEY"],
+)
+if client is None:
+    raise RuntimeError("Failed to initialize OpenAI client")
 
 
 # Best-performing policy: collect all required constraints
